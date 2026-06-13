@@ -44,6 +44,7 @@
 - [ ] table-stakes.4 `./rls` — `RowLevelSecurity` reader/writer wrappers + a pure `requireRole` guard
 - [ ] table-stakes.5 `./triggers` — atomic in-transaction denormalization / cascade delete
 - [ ] table-stakes.6 `./http` — `corsRouter`/`jsonResponse`/`resolveBearer`/hono adapter; error → status via `./errors` (#6)
+- [ ] table-stakes.7 Webhook glue in `./http` — receipt + HMAC signature verification (absorbs the host-`ctx` half of the retired `convex-webhook`; exactly-once dedup stays in the `convex-idempotency` component, never a table here — hub `retire-webhook-mcp`)
 
 ## react-tooling [PLANNED]
 
