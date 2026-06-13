@@ -17,10 +17,10 @@
 **Goal:** Stand up the type-B package at the Universal standard with the function-boundary builder every other primitive composes onto.
 **Exit criteria:** `@vllnt/convex-helpers` builds, lints, and typechecks green at 100% coverage; `./builders` is published; the package is named `@vllnt/convex-helpers` (not the stub `@vllnt/convex`).
 
-- [ ] foundation.1 Scaffold the type-B package structure to the Universal standard (#1, #2)
-- [ ] foundation.2 Reconcile the package name `@vllnt/convex` → `@vllnt/convex-helpers` (README, `package.json`, exports map)
+- [x] foundation.1 Scaffold the type-B package structure to the Universal standard (#1, #2)
+- [x] foundation.2 Reconcile the package name `@vllnt/convex` → `@vllnt/convex-helpers` (README, `package.json`, exports map)
 - [ ] foundation.3 Ship `./builders` — `customQuery`/`customMutation`/`customAction`/`customCtx` + composition (#3)
-- [ ] foundation.4 Wire the 100% E2E coverage gate + `ci.yml` (Universal standard)
+- [x] foundation.4 Wire the 100% coverage gate + `ci.yml` (Universal standard; CI runs `pnpm test:coverage`)
 
 ## dx-gap-fillers [PLANNED]
 
