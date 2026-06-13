@@ -1,25 +1,86 @@
-# @vllnt/convex
+<!-- Badges -->
+[![npm version](https://img.shields.io/npm/v/@vllnt/convex-helpers.svg)](https://www.npmjs.com/package/@vllnt/convex-helpers)
+[![CI](https://github.com/vllnt/convex-helpers/actions/workflows/ci.yml/badge.svg)](https://github.com/vllnt/convex-helpers/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/npm/l/@vllnt/convex-helpers.svg)](./LICENSE)
 
-Convex helpers — builders, errors, pagination, HTTP utils, test fixtures.
+# @vllnt/convex-helpers
 
-Zero schema dependency. Works in any Convex project.
+Typed host-side helpers for Convex backends — builders, errors, validators, relationships,
+pagination, HTTP, env, and observability.
 
-## Exports
+A **type-B helpers library** (not a sandboxed Convex component) for Convex backends. Provides pure
+functions and host-`ctx` glue utilities that run with the host's `ctx` — no own tables, no
+`app.use()` mounting. The complement of the vllnt Convex component fleet; stateful concerns are
+deferred to `@convex-dev/*` or `@vllnt/convex-*` components per the fleet dependency policy.
 
-```
-@vllnt/convex/builders     authedQuery, authedMutation, workspaceQuery, workspaceMutation
-@vllnt/convex/errors       convexError, notFound, unauthorized, rateLimited, forbidden
-@vllnt/convex/pagination   paginateWithLimit, buildPaginationOptions
-@vllnt/convex/http         corsHeaders, jsonResponse, resolveBearer
-@vllnt/convex/testing      createTestContext, seedUser, seedWorkspace
-```
+See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 
-## Install
+## Features
+
+- `asyncMap` — parallel async map that preserves order
+- `pruneNull` — filter null/undefined from arrays
+- `nullThrows` — non-null assertion with typed `NullDocumentError`
+- [planned] `./builders` — `customQuery`/`customMutation`/`customAction`/`customCtx`
+- [planned] `./errors` — typed `AppError` + HTTP-status map
+- [planned] `./auth` — provider-agnostic `requireIdentity`/`getCurrentSubject`
+- [planned] `./env` — `defineEnv(zodSchema)` cold-start validation
+- [planned] `./tracing` — span emit + `traceparent` propagation via `@vllnt/logger`
+- [planned] `./testing` — fixture factories + `withIdentity`
+- [planned] `./relationships`, `./validators`, `./pagination`, `./rls`, `./triggers`, `./http`
+- [planned] `./react` — optional tree-shakeable front-end hooks layer
+
+## Installation
 
 ```bash
-pnpm add @vllnt/convex
+pnpm add @vllnt/convex-helpers
 ```
 
-## Status
+`convex` is a peer dependency:
 
-Private — in development.
+```bash
+pnpm add convex
+```
+
+## Usage
+
+```ts
+import { asyncMap, pruneNull, nullThrows } from "@vllnt/convex-helpers";
+
+// Parallel fetch with null filtering
+const docs = pruneNull(await asyncMap(ids, (id) => ctx.db.get(id)));
+
+// Non-null assertion
+const doc = nullThrows(await ctx.db.get(id), `Document ${id} not found`);
+```
+
+## API Reference
+
+See [docs/API.md](./docs/API.md) for full API reference with signatures and examples.
+
+## Testing
+
+```bash
+pnpm test
+pnpm test:coverage   # must reach 100%
+```
+
+Tests use [vitest](https://vitest.dev) with the node environment. 100% coverage is enforced via
+`vitest.config.mts` thresholds.
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, code style, and PR guidelines.
+
+## Author
+
+Built by [bntvllnt](https://github.com/bntvllnt) · [bntvllnt.com](https://bntvllnt.com) · [X
+@bntvllnt](https://x.com/bntvllnt)
+
+Part of the [@vllnt](https://github.com/vllnt) Convex component fleet —
+[vllnt.com](https://vllnt.com)
+
+If this is useful, [sponsor the work](https://github.com/sponsors/bntvllnt).
+
+## License
+
+[MIT](./LICENSE)

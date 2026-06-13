@@ -1,0 +1,27 @@
+# @vllnt/convex-helpers
+
+> Typed host-side helpers for Convex backends — builders, errors, validators, relationships,
+> pagination, HTTP, env, and observability.
+
+`@vllnt/convex-helpers` is a type-B helpers library (not a sandboxed Convex component) for
+Convex backends. It provides pure functions and host-`ctx` glue utilities that run with the host's
+`ctx` — no own tables, no `app.use()` mounting. The library targets `convex@^1.36.1` and is the
+host-side complement of the vllnt Convex component fleet. Stateful concerns (rate limiting,
+idempotency, flags, etc.) are deferred to `@convex-dev/*` or `@vllnt/convex-*` components per the
+fleet dependency policy.
+
+## Docs
+
+- [README](README.md): Project overview, installation, usage examples, and planned surface
+- [API Reference](docs/API.md): Exported utilities, signatures, and compatibility
+- [Changelog](CHANGELOG.md): Version history and release notes
+- [Roadmap](ROADMAP.md): Planned modules and milestones
+- [Contributing](CONTRIBUTING.md): Development setup, validation commands, and release workflow
+
+## Optional
+
+- [AGENTS](AGENTS.md): Canonical agent instructions for this repository
+- [Security Policy](SECURITY.md): Vulnerability reporting policy
+- [Code of Conduct](CODE_OF_CONDUCT.md): Community participation guidelines
+- [License](LICENSE): MIT license
+- [Full source bundle](llms-full.txt): Aggregated README, changelog, API docs, and key source files

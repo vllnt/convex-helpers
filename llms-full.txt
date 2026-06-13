@@ -1,0 +1,299 @@
+# @vllnt/convex-helpers — Full Source
+
+Auto-generated. Do not edit manually.
+
+---
+
+## README.md
+
+<!-- Badges -->
+[![npm version](https://img.shields.io/npm/v/@vllnt/convex-helpers.svg)](https://www.npmjs.com/package/@vllnt/convex-helpers)
+[![CI](https://github.com/vllnt/convex-helpers/actions/workflows/ci.yml/badge.svg)](https://github.com/vllnt/convex-helpers/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/npm/l/@vllnt/convex-helpers.svg)](./LICENSE)
+
+# @vllnt/convex-helpers
+
+Typed host-side helpers for Convex backends — builders, errors, validators, relationships,
+pagination, HTTP, env, and observability.
+
+A **type-B helpers library** (not a sandboxed Convex component) for Convex backends. Provides pure
+functions and host-`ctx` glue utilities that run with the host's `ctx` — no own tables, no
+`app.use()` mounting. The complement of the vllnt Convex component fleet; stateful concerns are
+deferred to `@convex-dev/*` or `@vllnt/convex-*` components per the fleet dependency policy.
+
+See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
+
+## Features
+
+- `asyncMap` — parallel async map that preserves order
+- `pruneNull` — filter null/undefined from arrays
+- `nullThrows` — non-null assertion with typed `NullDocumentError`
+- [planned] `./builders` — `customQuery`/`customMutation`/`customAction`/`customCtx`
+- [planned] `./errors` — typed `AppError` + HTTP-status map
+- [planned] `./auth` — provider-agnostic `requireIdentity`/`getCurrentSubject`
+- [planned] `./env` — `defineEnv(zodSchema)` cold-start validation
+- [planned] `./tracing` — span emit + `traceparent` propagation via `@vllnt/logger`
+- [planned] `./testing` — fixture factories + `withIdentity`
+- [planned] `./relationships`, `./validators`, `./pagination`, `./rls`, `./triggers`, `./http`
+- [planned] `./react` — optional tree-shakeable front-end hooks layer
+
+## Installation
+
+```bash
+pnpm add @vllnt/convex-helpers
+```
+
+`convex` is a peer dependency:
+
+```bash
+pnpm add convex
+```
+
+## Usage
+
+```ts
+import { asyncMap, pruneNull, nullThrows } from "@vllnt/convex-helpers";
+
+// Parallel fetch with null filtering
+const docs = pruneNull(await asyncMap(ids, (id) => ctx.db.get(id)));
+
+// Non-null assertion
+const doc = nullThrows(await ctx.db.get(id), `Document ${id} not found`);
+```
+
+## API Reference
+
+See [docs/API.md](./docs/API.md) for full API reference with signatures and examples.
+
+## Testing
+
+```bash
+pnpm test
+pnpm test:coverage   # must reach 100%
+```
+
+Tests use [vitest](https://vitest.dev) with the node environment. 100% coverage is enforced via
+`vitest.config.mts` thresholds.
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, code style, and PR guidelines.
+
+## Author
+
+Built by [bntvllnt](https://github.com/bntvllnt) · [bntvllnt.com](https://bntvllnt.com) · [X
+@bntvllnt](https://x.com/bntvllnt)
+
+Part of the [@vllnt](https://github.com/vllnt) Convex component fleet —
+[vllnt.com](https://vllnt.com)
+
+If this is useful, [sponsor the work](https://github.com/sponsors/bntvllnt).
+
+## License
+
+[MIT](./LICENSE)
+
+
+---
+
+## CHANGELOG.md
+
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1.0] - 2026-06-13
+
+### Added
+
+- Scaffolded to fleet Universal standard (type-B helpers library)
+- Seed root utilities: `asyncMap`, `pruneNull`, `nullThrows`, `NullDocumentError`
+- 100% test coverage gate via vitest thresholds
+- CI workflow, publish workflow, email-guard workflow
+- Full docs set: README, CHANGELOG, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT
+- `llms.txt` and `llms-full.txt` for AI agent discovery
+
+
+---
+
+## docs/API.md
+
+# API Reference — @vllnt/convex-helpers
+
+**Compatibility:** `convex@^1.36.1`
+
+This library provides pure functions and host-`ctx` glue utilities. It is a type-B helpers library
+— not a sandboxed Convex component — and runs with the host's `ctx`. No `app.use()` mounting
+required.
+
+## Root utilities (shipped)
+
+### asyncMap\<T, U\>(list, fn)
+
+Applies an async function to every element of an array, returning results in order.
+
+```ts
+import { asyncMap } from "@vllnt/convex-helpers";
+
+const docs = await asyncMap(ids, (id) => ctx.db.get(id));
+```
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `list` | `T[]` | Input array |
+| `fn` | `(item: T, index: number) => Promise<U>` | Async mapper function |
+
+**Returns:** `Promise<U[]>` — results in original order.
+
+---
+
+### pruneNull\<T\>(list)
+
+Filters null and undefined values from an array.
+
+```ts
+import { asyncMap, pruneNull } from "@vllnt/convex-helpers";
+
+const docs = pruneNull(await asyncMap(ids, (id) => ctx.db.get(id)));
+```
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `list` | `(T \| null \| undefined)[]` | Input array potentially containing null/undefined |
+
+**Returns:** `T[]` — all null and undefined values removed.
+
+---
+
+### nullThrows\<T\>(value, message?)
+
+Asserts a value is non-null and non-undefined, throwing `NullDocumentError` if it is.
+
+```ts
+import { nullThrows } from "@vllnt/convex-helpers";
+
+const doc = nullThrows(await ctx.db.get(id), `Document ${id} not found`);
+```
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `value` | `T \| null \| undefined` | Value to check |
+| `message` | `string` (optional) | Custom error message |
+
+**Returns:** `T` — the value, narrowed to exclude null and undefined.
+
+**Throws:** `NullDocumentError` when value is null or undefined.
+
+---
+
+### NullDocumentError
+
+Error thrown when a required document is null or undefined.
+
+```ts
+import { NullDocumentError } from "@vllnt/convex-helpers";
+
+try {
+  const doc = nullThrows(await ctx.db.get(id));
+} catch (e) {
+  if (e instanceof NullDocumentError) {
+    // handle missing document
+  }
+}
+```
+
+## Planned modules
+
+The following modules are on the roadmap but not yet shipped. See [ROADMAP.md](../ROADMAP.md) for
+milestones and exit criteria.
+
+| Module | Status | Description |
+|--------|--------|-------------|
+| `./builders` | [planned] | `customQuery`/`customMutation`/`customAction`/`customCtx` + composition |
+| `./errors` | [planned] | `AppError(code)` + HTTP-status map + `toResponse()` |
+| `./auth` | [planned] | `requireIdentity(ctx)` / `getCurrentSubject(ctx)` over `ctx.auth` |
+| `./env` | [planned] | `defineEnv(zodSchema)` cold-start validation |
+| `./tracing` | [planned] | span emit + `traceparent` propagation |
+| `./testing` | [planned] | `register(t)` + fixture factories + `withIdentity` |
+| `./relationships` | [planned] | `getOneFrom`/`getManyFrom`/`getManyVia` + `asyncMap` |
+| `./validators` | [planned] | `partial`/`typedV`/`doc`/`literals` + zod bridge |
+| `./pagination` | [planned] | `getPage`/`mergedStream`/`filter` |
+| `./rls` | [planned] | `RowLevelSecurity` reader/writer wrappers |
+| `./triggers` | [planned] | atomic in-transaction denormalization / cascade delete |
+| `./http` | [planned] | `corsRouter`/`jsonResponse`/`resolveBearer`/hono adapter |
+| `./react` | [planned] | optional tree-shakeable front-end tooling layer |
+
+
+---
+
+## src/index.ts
+
+```ts
+/**
+ * @module @vllnt/convex-helpers
+ * Pure host-side helpers for Convex backends.
+ */
+
+/**
+ * Applies an async function to every element of an array, returning results in order.
+ *
+ * @param list - Input array
+ * @param fn - Async mapper function
+ * @returns Promise resolving to mapped array in original order
+ * @example
+ * const docs = await asyncMap(ids, (id) => ctx.db.get(id));
+ */
+export async function asyncMap<T, TResult>(
+  list: T[],
+  fn: (item: T, index: number) => Promise<TResult>,
+): Promise<TResult[]> {
+  return Promise.all(list.map(fn));
+}
+
+/**
+ * Filters null and undefined values from an array.
+ *
+ * @param list - Input array potentially containing null/undefined
+ * @returns Array with all null and undefined values removed
+ * @example
+ * const docs = pruneNull(await asyncMap(ids, (id) => ctx.db.get(id)));
+ */
+export function pruneNull<T>(list: (null | T | undefined)[]): T[] {
+  return list.filter((item): item is T => item !== null && item !== undefined);
+}
+
+/**
+ * Error thrown when a required document is null or undefined.
+ */
+export class NullDocumentError extends Error {
+  constructor(message = "Expected a non-null document") {
+    super(message);
+    this.name = "NullDocumentError";
+  }
+}
+
+/**
+ * Asserts a value is non-null and non-undefined, throwing NullDocumentError when absent.
+ *
+ * @param value - Value to check
+ * @param message - Optional custom error message
+ * @returns The value, narrowed to exclude null and undefined
+ * @throws {NullDocumentError} When value is null or undefined
+ * @example
+ * const doc = nullThrows(await ctx.db.get(id), `Document ${id} not found`);
+ */
+export function nullThrows<T>(
+  value: null | T | undefined,
+  message?: string,
+): T {
+  if (value === null || value === undefined) {
+    throw new NullDocumentError(message);
+  }
+  return value;
+}
+```

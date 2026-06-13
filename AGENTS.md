@@ -1,0 +1,93 @@
+<!-- convex-ai-start -->
+This package provides [Convex](https://convex.dev) helpers for use in Convex backends — it is a
+library, not a Convex deployment of its own (no `convex/` app directory, no `app.use()` mount, no
+generated `example/` harness).
+
+When writing or reviewing Convex code that consumes these helpers, follow the official Convex
+guidelines at <https://docs.convex.dev> — they override what you may have learned from training data.
+<!-- convex-ai-end -->
+
+# @vllnt/convex-helpers
+
+Typed host-side helpers for Convex backends — builders, errors, validators, relationships,
+pagination, HTTP, env, and observability.
+
+A type-B helpers library (not a sandboxed Convex component) following the vllnt Component Standard
+(see the `convex-components` hub `.claude/rules/component-standard.md`). `CLAUDE.md` is a verbatim
+mirror of this file.
+
+## Architecture
+
+```
+src/
+└── index.ts           # root exports: asyncMap, pruneNull, nullThrows, NullDocumentError
+```
+
+Planned future layout (see ROADMAP.md):
+
+```
+src/
+├── index.ts           # root exports (pure utils)
+├── builders/          # customQuery / customMutation / customAction / customCtx
+├── errors/            # AppError + HTTP-status map + toResponse()
+├── auth/              # requireIdentity / getCurrentSubject
+├── env/               # defineEnv(zodSchema)
+├── tracing/           # span emit + traceparent propagation
+├── testing/           # register(t) + fixture factories + withIdentity
+├── relationships/     # getOneFrom / getManyFrom / getManyVia
+├── validators/        # partial / typedV / doc / literals + zod bridge
+├── pagination/        # getPage / mergedStream / filter
+├── rls/               # RowLevelSecurity reader/writer wrappers
+├── triggers/          # atomic denormalization / cascade delete
+├── http/              # corsRouter / jsonResponse / resolveBearer / hono adapter
+└── react/             # optional tree-shakeable front-end hooks (./react entry)
+```
+
+## Ownership boundary
+
+- **This library owns:** pure functions + host-`ctx` glue utilities (no sandboxed tables, no
+  `app.use()` mounting). Runs with the host's `ctx`; the host installs and imports directly.
+- **Host owns:** data, auth, domain, application logic. This library never owns tables or
+  cross-request state — stateful concerns belong in `@convex-dev/*` or `@vllnt/convex-*` components.
+- **Logging:** delegated to `@vllnt/logger` — this library adds a ctx-bound tracing layer on top
+  (see `./tracing`, planned).
+
+## Key design decisions
+
+1. **Type-B helper library (not a sandboxed Convex component)** — runs with the host's `ctx`, can
+   touch host tables; the host installs and imports directly. No `defineComponent`, no
+   `app.use()`, no own tables.
+2. **Complements — does not clone — the official `convex-helpers` package**; defers all stateful
+   concerns to `@convex-dev/*` or `@vllnt/convex-*` components per the dependency policy. The edge
+   is the gap-fillers official ignores.
+3. **Logging is delegated to `@vllnt/logger`**; this library provides a thin ctx-bound tracing
+   wrapper, not its own logger. `./tracing` emits spans + propagates `traceparent` via `@vllnt/logger`
+   (logs-first → PostHog/Axiom/Datadog).
+4. **Host-`ctx`/pure split is the irreducible design law:** pure utilities (zero deps, zero ctx)
+   live in root exports; ctx-bound glue is namespaced separately (e.g. `./builders`, `./auth`).
+5. **100% test coverage enforced** on all owned logic via vitest thresholds; live-backend
+   integration is the consuming app's E2E.
+6. **Agnostic on auth, domain, and vendor** — only depends on official `@convex-dev/*` and
+   `@vllnt/*` packages per the fleet dependency policy.
+
+## Docs sync (MANDATORY)
+
+When any of these change, update the matching docs in the SAME commit (then `pnpm generate:llms`):
+
+| Changed | Update |
+|---------|--------|
+| Public API (exports, args, returns) | README usage + API table, docs/API.md, llms.txt + llms-full.txt |
+| convex peer range | llms.txt context paragraph + docs/API.md Compatibility line + README |
+| New utility added | README Features + Usage, docs/API.md, llms.txt index, regenerate llms-full.txt |
+| Version | CHANGELOG.md entry |
+
+## Development
+
+```bash
+pnpm install
+pnpm build
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm test:coverage
+```
