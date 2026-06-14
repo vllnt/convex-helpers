@@ -8,10 +8,10 @@
 Typed host-side helpers for Convex backends — builders, errors, validators, relationships,
 pagination, HTTP, env, and observability.
 
-A **type-B helpers library** (not a sandboxed Convex component) for Convex backends. Provides pure
+A helpers library (not a sandboxed Convex component) for Convex backends. Provides pure
 functions and host-`ctx` glue utilities that run with the host's `ctx` — no own tables, no
-`app.use()` mounting. The complement of the vllnt Convex component fleet; stateful concerns are
-deferred to `@convex-dev/*` or `@vllnt/convex-*` components per the fleet dependency policy.
+`app.use()` mounting. Stateful concerns (rate limiting, idempotency, flags, etc.) belong in
+`@convex-dev/*` or `@vllnt/convex-*` components.
 
 See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 
