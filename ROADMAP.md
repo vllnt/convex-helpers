@@ -3,7 +3,7 @@
 > The host-`ctx` / pure-function complement of the vllnt Convex component fleet — every cross-cutting Convex boilerplate that needs no sandboxed state, with stateful concerns deferred to components.
 
 **Now:** foundation
-**Last updated:** 2026-06-13
+**Last updated:** 2026-06-14
 
 > **Design (first principles):** a helper may hold only PURE functions or host-`ctx` glue;
 > the instant a capability needs its own sandboxed state (a table, a cron, isolation) it is a
@@ -36,7 +36,7 @@
 ## table-stakes [PLANNED]
 
 **Goal:** Match-or-beat the official `convex-helpers` surface for the remaining host-`ctx` primitives so adopting ours never regresses ergonomics.
-**Exit criteria:** relationships, validators+zod, query-shaping, RLS, triggers, and HTTP all ship at 100% coverage; the filter-undersizes-page bug (convex-helpers #864) has a passing regression test.
+**Exit criteria:** relationships, validators+zod, query-shaping, RLS, triggers, HTTP, and webhook verify/replay/routing + provider adapters all ship at 100% coverage; the filter-undersizes-page bug (convex-helpers #864) has a passing regression test.
 
 - [ ] table-stakes.1 `./relationships` — `getOneFrom`/`getManyFrom`/`getManyVia` + `asyncMap` (query count O(1) in batch size, not O(N))
 - [ ] table-stakes.2 `./validators` + `./zod` — `partial`/`typedV`/`doc`/`literals` + the zod↔convex bridge (one source, zero validator↔type drift)
@@ -44,7 +44,8 @@
 - [ ] table-stakes.4 `./rls` — `RowLevelSecurity` reader/writer wrappers + a pure `requireRole` guard
 - [ ] table-stakes.5 `./triggers` — atomic in-transaction denormalization / cascade delete
 - [ ] table-stakes.6 `./http` — `corsRouter`/`jsonResponse`/`resolveBearer`/hono adapter; error → status via `./errors` (#6)
-- [ ] table-stakes.7 Webhook glue in `./http` — receipt + HMAC signature verification (absorbs the host-`ctx` half of the retired `convex-webhook`; exactly-once dedup stays in the `convex-idempotency` component, never a table here — hub `retire-webhook-mcp`)
+- [ ] table-stakes.7 Webhook core in `./http` — `createWebhookHandler({ verify, replay, routes })`: HMAC-SHA256 signature verification (configurable header + secret), raw-body extraction, pure timestamp replay guard (configurable tolerance), event-type → handler routing with per-handler error isolation, structured transient-vs-permanent error responses + `@vllnt/logger` hooks, Convex HTTP-action compatible (`Request` → `Response`). Absorbs the host-`ctx` half of the retired `convex-webhook` (`vllnt/convex-webhook#1`; see `IDEAS.md`); exactly-once dedup + delivery tracking stay in the `convex-idempotency` component, never a table here — hub `retire-webhook-mcp`
+- [ ] table-stakes.8 Webhook provider adapters in `./http` — pre-built verify configs (pure, no state): Polar (HMAC), GitHub (HMAC-SHA256), Stripe (HMAC-SHA256 + timestamp), Typefully (HMAC-SHA256 + timestamp), Adapty (custom, `event_id` based), Generic (bring-your-own verify fn). Minimum for platform needs: Polar + GitHub
 
 ## react-tooling [PLANNED]
 
