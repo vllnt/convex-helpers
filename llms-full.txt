@@ -16,10 +16,16 @@ Auto-generated. Do not edit manually.
 Typed host-side helpers for Convex backends — builders, errors, validators, relationships,
 pagination, HTTP, env, and observability.
 
-A helpers library (not a sandboxed Convex component) for Convex backends. Provides pure
-functions and host-`ctx` glue utilities that run with the host's `ctx` — no own tables, no
-`app.use()` mounting. Stateful concerns (rate limiting, idempotency, flags, etc.) belong in
-`@convex-dev/*` or `@vllnt/convex-*` components.
+```ts
+import { asyncMap, pruneNull, nullThrows } from "@vllnt/convex-helpers";
+
+const docs = pruneNull(await asyncMap(ids, (id) => ctx.db.get(id)));
+const doc = nullThrows(await ctx.db.get(id), `Document ${id} not found`);
+```
+
+A helpers library (not a sandboxed Convex component): pure functions and host-`ctx` glue that run with
+the host's `ctx` — no own tables, no `app.use()` mounting. Stateful concerns (rate limiting,
+idempotency, flags) belong in `@convex-dev/*` or `@vllnt/convex-*` components.
 
 See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 
