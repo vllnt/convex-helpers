@@ -14,12 +14,10 @@ Non-goals).
 **Source:** harvested from the retired `convex-webhook` (`vllnt/convex-webhook#1`). Built twice
 independently before extraction:
 
-- **SongTrivia** (Adapty) — `event_id` idempotency, out-of-order rejection, OCC versioning,
+- An Adapty subscription webhook — `event_id` idempotency, out-of-order rejection, OCC versioning,
   `processed_events` table with 7-day TTL.
-  Ref: `songtrivia/packages/backend/convex/subscription/process_webhook.ts`
-- **bntvllnt** (Typefully) — HMAC-SHA256 verify, 5-min timestamp replay guard, per-platform
+- A Typefully platform webhook — HMAC-SHA256 verify, 5-min timestamp replay guard, per-platform
   routing, delivery-status logging.
-  Ref: `bntvllnt/convex/webhooks/handler.ts`
 
 **Why here, split two ways.** A helper may hold only pure functions or host-`ctx` glue — the
 instant a capability needs sandboxed state it is a component, not a helper. So the `convex-webhook`
