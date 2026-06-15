@@ -53,7 +53,9 @@ export function registerResources(
             error,
             resource: uriPattern,
           });
-          throw error;
+          // Mask the raw Convex error from the client (parity with the tool
+          // handler); the real error is logged server-side above.
+          throw new Error("Resource read failed");
         }
       },
     );

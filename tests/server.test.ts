@@ -325,6 +325,8 @@ describe("resource read", () => {
     expect(response.status).toBe(200);
     const data = await parseSSEResponse(response);
     expect(data.error ?? data.result?.isError).toBeTruthy();
+    // The raw Convex error message must be masked from the client.
+    expect(JSON.stringify(data)).not.toContain("DB connection failed");
   });
 });
 

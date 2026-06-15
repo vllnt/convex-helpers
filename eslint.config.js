@@ -32,8 +32,10 @@ export default [
   //   - prefer-code-point: base64 byte handling MUST use charCodeAt/fromCharCode (codePointAt
   //     corrupts surrogate pairs) — a false positive for binary work.
   //   - naming-convention: HTTP header keys ("Content-Type") are not camelCase.
-  //   - no-deprecated: uses the MCP SDK `tool()`/`resource()` API (the override timing relies on
-  //     its lazy-init). Migrating to registerTool/registerResource is a tracked follow-up.
+  //   - no-unsafe-return: the injectable `ConvexClient.{query,mutation,action}` return `Promise<any>`
+  //     (Convex `FunctionReference` can't be typed without importing internals) — the seam is `any`.
+  //   - no-deprecated: uses the MCP SDK `tool()`/`resource()` API. Migrating to
+  //     registerTool/registerResource is a tracked follow-up (ROADMAP absorb-convex-mcp).
   //   - loop/abbreviation/length/comment-prose rules: stylistic, not worth churning proven code.
   {
     files: ["src/mcp/**/*.ts"],

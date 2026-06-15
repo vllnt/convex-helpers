@@ -25,8 +25,8 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsc --project ./tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
-    "typecheck:ci": "tsc --noEmit --project tsconfig.ci.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit --project tsconfig.test.json",
+    "typecheck:ci": "tsc --noEmit --project tsconfig.ci.json && tsc --noEmit --project tsconfig.test.json",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --typecheck --clearScreen false",

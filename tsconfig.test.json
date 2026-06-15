@@ -3,7 +3,9 @@
   "compilerOptions": {
     "types": ["vitest/globals", "node"],
     "module": "NodeNext",
-    "moduleResolution": "NodeNext"
+    "moduleResolution": "NodeNext",
+    "rootDir": "."
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist", "tests/convex/**"]
 }
