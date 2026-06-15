@@ -20,7 +20,16 @@ mirror of this file.
 
 ```
 src/
-└── index.ts           # root exports: asyncMap, pruneNull, nullThrows, NullDocumentError
+├── index.ts           # root exports: asyncMap, pruneNull, nullThrows, NullDocumentError
+└── mcp/               # ./mcp entry — expose Convex functions as MCP tools (absorbed from @vllnt/convex-mcp)
+    ├── index.ts       # public API barrel
+    ├── server.ts      # createMCPServer + GET/POST Streamable-HTTP handler
+    ├── auth.ts        # Bearer key extraction + default-deny validation
+    ├── validators.ts  # Convex validator → zod schema conversion
+    ├── types.ts       # public types (ServerConfig, ToolDef, CallContext, ...)
+    ├── tools/         # query/mutation/action wrappers + registration + lifecycle hooks
+    ├── resources/     # resource wrapper + registration
+    └── pagination/    # HMAC-signed cursor + two-phase discovery
 ```
 
 Planned future layout (see ROADMAP.md):
@@ -69,6 +78,14 @@ src/
    integration is the consuming app's E2E.
 6. **Agnostic on auth, domain, and vendor** — only depends on official `@convex-dev/*` and
    `@vllnt/*` packages per the fleet dependency policy.
+7. **`./mcp` is an optional, tree-shakeable entry** absorbed from `@vllnt/convex-mcp` (the
+   `absorb-convex-mcp` migration). It is host-`ctx` library glue with no sandboxed tables — exactly
+   why it belongs in this type-B library rather than a separate repo. `@modelcontextprotocol/sdk` +
+   `zod` are OPTIONAL peer deps so backend-only consumers pull zero MCP code. The source was ported
+   verbatim and held at 100% coverage; a scoped `src/mcp/**` eslint override exempts the proven
+   protocol/JSON-RPC/Web-Crypto code from opinionated style rules (each exemption justified inline in
+   `eslint.config.js`). Follow-up: migrate the MCP SDK `tool()`/`resource()` calls to
+   `registerTool`/`registerResource`.
 
 ## Docs sync (MANDATORY)
 
@@ -79,6 +96,7 @@ When any of these change, update the matching docs in the SAME commit (then `pnp
 | Public API (exports, args, returns) | README usage + API table, docs/API.md, llms.txt + llms-full.txt |
 | convex peer range | llms.txt context paragraph + docs/API.md Compatibility line + README |
 | New utility added | README Features + Usage, docs/API.md, llms.txt index, regenerate llms-full.txt |
+| New `exports` entry / peer dep | README, docs/API.md, llms, `package.json` exports + peer deps |
 | Version | CHANGELOG.md entry |
 
 ## Development

@@ -7,8 +7,14 @@ export default defineConfig({
     typecheck: {
       tsconfig: "./tsconfig.test.json",
     },
+    server: {
+      deps: {
+        inline: ["convex-test"],
+      },
+    },
     coverage: {
-      include: ["src/index.ts"],
+      include: ["src/index.ts", "src/mcp/**/*.ts"],
+      exclude: ["src/mcp/index.ts", "src/mcp/types.ts", "src/mcp/**/types.ts"],
       thresholds: {
         statements: 100,
         branches: 100,

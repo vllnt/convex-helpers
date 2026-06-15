@@ -3,7 +3,7 @@
 > The host-`ctx` / pure-function complement of the vllnt Convex component fleet — every cross-cutting Convex boilerplate that needs no sandboxed state, with stateful concerns deferred to components.
 
 **Now:** foundation
-**Last updated:** 2026-06-14
+**Last updated:** 2026-06-15
 
 > **Design (first principles):** a helper may hold only PURE functions or host-`ctx` glue;
 > the instant a capability needs its own sandboxed state (a table, a cron, isolation) it is a
@@ -66,6 +66,23 @@
 - [ ] first-release.1 Docs — README + `llms.txt`/`llms-full.txt`: the host-`ctx`-complement scope, the `@vllnt/logger` boundary (logging vs tracing), and the component-deferral table
 - [ ] first-release.2 Wire into ≥2 real backends (a `vllnt` app + an `anthm-fr` game) end-to-end
 - [ ] first-release.3 Publish 0.1.0 via the standard OIDC `publish.yml`
+
+## absorb-convex-mcp [PLANNED]
+
+**Goal:** Absorb `@vllnt/convex-mcp`'s host-side library surface (expose Convex functions as MCP tools, zero own tables) into this library as a tree-shakeable `./mcp` entry, then deprecate the standalone package and migrate its consumers — it is host-`ctx` glue with no sandboxed state, so by the fleet's own type rules it belongs here, not in a separate repo.
+**Exit criteria:** `./mcp` ships at 100% coverage with feature parity to `convex-mcp` v0.3.1 (`createMCPServer` + `query`/`mutation`/`action`/`resource` typed wrappers, default-deny auth, validator→zod conversion, `onToolCall` lifecycle hook, generic-error masking, cursor pagination + two-phase discovery); `@modelcontextprotocol/sdk` is an **optional** peer dep (backend-only consumers pull zero MCP code); every live `@vllnt/convex-mcp` consumer is repointed to `@vllnt/convex-helpers/mcp` and E2E-green; `convex-mcp` is deprecated read-only (`npm deprecate` + README banner) and the hub `retire-webhook-mcp.3`/`.4` + the Component-Standard Type-C example are reconciled. **Sequenced after `table-stakes.2` (reuses the `./zod` bridge) and after `first-release` — must not block 0.1.0.**
+
+> **Note (2026-06-15):** the owner pulled the build-out (`.2`–`.5`) forward, ahead of the planned
+> sequence. `./mcp` is implemented in-tree at 100% coverage (161 tests) but **unreleased**; the phase
+> stays `[PLANNED]` until consumer migration + deprecation (`.1`, `.6`, `.7`) complete its exit criteria.
+
+- [ ] absorb-convex-mcp.1 Consumer inventory — find every live `@vllnt/convex-mcp` consumer across the orgs (`vllnt`/`bntvllnt`/`anthm-fr`); confirm migration is worth it (or that it's zero-consumer, like the webhook retirement)
+- [x] absorb-convex-mcp.2 Port the MCP library surface into `./mcp` — `createMCPServer` + `query`/`mutation`/`action`/`resource` typed wrappers, default-deny auth, validator→zod converter, `onToolCall` lifecycle hook, generic-error masking; `@modelcontextprotocol/sdk` + `zod` as **optional** peer deps, tree-shakeable (done 2026-06-15 — ported verbatim from `@vllnt/convex-mcp`)
+- [x] absorb-convex-mcp.3 Port pagination — cursor HMAC encode/decode (constant-time verify), two-phase discovery (`tools/list_summary` + `tools/describe`), pageSize validation (done 2026-06-15)
+- [x] absorb-convex-mcp.4 Tests — brought `convex-mcp`'s tests + `convex-test` e2e over; 100% coverage on `./mcp` (161 tests); happy + adversarial (auth-denied, bad/forged cursor, oversized page) (done 2026-06-15)
+- [x] absorb-convex-mcp.5 Docs — README `./mcp` section + `docs/API.md` + llms + CHANGELOG + AGENTS/CLAUDE; migration note `@vllnt/convex-mcp` → `@vllnt/convex-helpers/mcp` (done 2026-06-15)
+- [ ] absorb-convex-mcp.6 Migrate consumers — repoint each live consumer; verify E2E green
+- [ ] absorb-convex-mcp.7 Deprecate `convex-mcp` — `npm deprecate` pointing to `@vllnt/convex-helpers/mcp`, README banner, archive the repo read-only; reconcile hub `retire-webhook-mcp.3`/`.4` + the Component-Standard Type-C example
 
 ## Non-goals — deferred to components (dependency policy)
 

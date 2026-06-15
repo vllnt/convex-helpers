@@ -34,6 +34,7 @@ See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 - `asyncMap` — parallel async map that preserves order
 - `pruneNull` — filter null/undefined from arrays
 - `nullThrows` — non-null assertion with typed `NullDocumentError`
+- `./mcp` — expose Convex functions as MCP tools (`createMCPServer` + `query`/`mutation`/`action`/`resource`), default-deny auth, optional cursor pagination
 - [planned] `./builders` — `customQuery`/`customMutation`/`customAction`/`customCtx`
 - [planned] `./errors` — typed `AppError` + HTTP-status map
 - [planned] `./auth` — provider-agnostic `requireIdentity`/`getCurrentSubject`
@@ -66,6 +67,38 @@ const docs = pruneNull(await asyncMap(ids, (id) => ctx.db.get(id)));
 // Non-null assertion
 const doc = nullThrows(await ctx.db.get(id), `Document ${id} not found`);
 ```
+
+### MCP tools — `./mcp`
+
+Expose Convex functions to LLM agents over the Model Context Protocol. The `./mcp` entry is
+tree-shakeable — backend-only consumers pull zero MCP code. It needs two optional peer deps:
+
+```bash
+pnpm add @modelcontextprotocol/sdk zod
+```
+
+```ts
+import { createMCPServer, query, mutation } from "@vllnt/convex-helpers/mcp";
+import { api } from "./_generated/api";
+import { v } from "convex/values";
+
+export const mcp = createMCPServer({
+  auth: { validate: async (key) => key === process.env.MCP_API_KEY },
+  tools: {
+    list_projects: query(api.projects.list, { args: v.object({}), description: "List all projects" }),
+    create_project: mutation(api.projects.create, {
+      args: v.object({ name: v.string() }),
+      description: "Create a project",
+    }),
+  },
+});
+
+// Mount the route handler (e.g. Next.js App Router)
+export const { GET, POST } = mcp.handler();
+```
+
+Migrating from `@vllnt/convex-mcp`? Change the import to `@vllnt/convex-helpers/mcp` — the API is
+identical. See [docs/API.md](./docs/API.md#mcp-tools-mcp) for the full `./mcp` reference.
 
 ## API Reference
 
@@ -112,6 +145,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- `./mcp` entry — expose Convex functions as MCP tools (`createMCPServer` + `query`/`mutation`/`action`/`resource`), default-deny auth, lifecycle hooks, validator→zod conversion, and optional HMAC-signed cursor pagination. Absorbed from `@vllnt/convex-mcp` (see ROADMAP `absorb-convex-mcp`). `@modelcontextprotocol/sdk` and `zod` are optional peer deps — the `./mcp` entry is tree-shakeable, so backend-only consumers pull neither. 100% test coverage retained (161 tests).
 
 ## [0.1.0] - 2026-06-13
 
@@ -213,6 +250,89 @@ try {
 }
 ```
 
+## MCP tools (`./mcp`)
+
+Expose Convex queries, mutations, and actions to LLM agents over the Model Context Protocol
+(Streamable HTTP). Import from `@vllnt/convex-helpers/mcp`. Requires the optional peer dependencies
+`@modelcontextprotocol/sdk` and `zod` — backend-only consumers that never import `./mcp` pull
+neither.
+
+### createMCPServer(config)
+
+Builds an MCP server. Returns `{ handler() }`, where `handler()` yields `{ GET, POST }` request
+handlers (Web `Request` → `Response`) to mount on your framework's route.
+
+```ts
+import { createMCPServer, query } from "@vllnt/convex-helpers/mcp";
+
+export const mcp = createMCPServer({
+  auth: { validate: async (key) => key === process.env.MCP_API_KEY },
+  tools: { list: query(api.tasks.list, { args: v.object({}), description: "List tasks" }) },
+});
+export const { GET, POST } = mcp.handler();
+```
+
+`ServerConfig`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `auth` | `AuthConfig` | **Required.** `validate(apiKey) => boolean` gates every request (default-deny — `createMCPServer` throws without it). Optional `convexToken(apiKey)` resolves a Convex auth token per call. |
+| `tools` | `Record<string, ToolDef>` | Named tools built with `query`/`mutation`/`action`. |
+| `resources` | `Record<string, ResourceDef>` | Named resources built with `resource`. |
+| `convexUrl` | `string` | Convex deployment URL. Defaults to `CONVEX_URL` / `NEXT_PUBLIC_CONVEX_URL`. |
+| `client` | `ConvexClient` | Inject a client (e.g. `convex-test`'s `t`) instead of a URL. Mutually exclusive with `auth.convexToken`. |
+| `hooks` | `LifecycleHooks` | `onToolCall(ctx)` fires `before`/`success`/`error`; `before` may `abort` or inject server-side args via `extendArgs`. |
+| `name`, `version` | `string` | Server identity advertised over MCP. |
+| `pagination` | `PaginationConfig` | Opt-in `tools/list` pagination — see below. |
+
+### query / mutation / action
+
+`query(ref, options)` / `mutation(ref, options)` / `action(ref, options)` wrap a Convex function
+reference as a typed `ToolDef`.
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `args` | `ConvexValidator` | A `v.object({...})` validator; converted to the tool's JSON-Schema input. |
+| `description` | `string` | Human/LLM-facing tool description. |
+| `tags` | `Record<string, string>` | Arbitrary metadata. |
+| `timeout` | `number` | Per-call timeout (ms). |
+| `onError` | `(ctx) => HookReturn` | Per-tool error hook. |
+
+### resource(ref, options)
+
+Wraps a Convex function reference as an MCP resource (`{ args?, description? }`).
+
+### Pagination
+
+`PaginationConfig` opts `tools/list` into cursor pagination. `tools/list` **without** a cursor always
+returns ALL tools (backward-compatible); pagination activates only when the client sends a cursor.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pageSize` | `number` | Tools per page (≥ 1). |
+| `twoPhaseDiscovery` | `boolean` | Enables the non-standard `tools/list_summary` + `tools/describe` methods (custom agents only). Default `false`. |
+
+Cursors are HMAC-signed per server instance and verified in constant time.
+
+### Validator utilities
+
+| Export | Description |
+|--------|-------------|
+| `convertValidator(validator)` | Convert one `ConvexValidator` to a `zod` schema. |
+| `convexArgsToZod(argsValidator)` | Convert a `v.object()` args validator to a `zod` object schema. |
+| `UnsupportedValidatorError` | Thrown for validator kinds with no MCP/JSON-Schema mapping. |
+
+### Request behavior & error codes
+
+| Condition | Response |
+|-----------|----------|
+| Missing/malformed `Authorization: Bearer <key>` | `401` `{ error }` |
+| `auth.validate` returns false | `401` `{ error: "Invalid API key." }` |
+| `POST` without `application/json` | `415` JSON-RPC error `-32700` |
+| Convex execution failure | Generic message to the client (internal Convex errors never leak); the `onToolCall`/`onError` hooks see the real error. |
+
+Every response carries an `X-Request-Id` header.
+
 ## Planned modules
 
 The following modules are on the roadmap but not yet shipped. See [ROADMAP.md](../ROADMAP.md) for
@@ -302,4 +422,34 @@ export function nullThrows<T>(
   }
   return value;
 }
+```
+
+---
+
+## src/mcp/index.ts
+
+```ts
+export type { ToolPage, ToolSummary } from "./pagination/types.js";
+export { resource } from "./resources/helpers.js";
+export { createMCPServer } from "./server.js";
+export { action, mutation, query } from "./tools/helpers.js";
+export type {
+  AuthConfig,
+  CallContext,
+  ConvexClient,
+  ConvexMCPServer,
+  ConvexValidator,
+  FunctionType,
+  LifecycleHooks,
+  OnCallResult,
+  PaginationConfig,
+  ResourceDef,
+  ServerConfig,
+  ToolDef,
+} from "./types.js";
+export {
+  convertValidator,
+  convexArgsToZod,
+  UnsupportedValidatorError,
+} from "./validators.js";
 ```

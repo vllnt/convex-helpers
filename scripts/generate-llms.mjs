@@ -5,6 +5,7 @@ const files = [
   "CHANGELOG.md",
   "docs/API.md",
   "src/index.ts",
+  "src/mcp/index.ts",
 ];
 
 let out = "# @vllnt/convex-helpers — Full Source\n\nAuto-generated. Do not edit manually.\n";

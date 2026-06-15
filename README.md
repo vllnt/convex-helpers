@@ -26,6 +26,7 @@ See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 - `asyncMap` — parallel async map that preserves order
 - `pruneNull` — filter null/undefined from arrays
 - `nullThrows` — non-null assertion with typed `NullDocumentError`
+- `./mcp` — expose Convex functions as MCP tools (`createMCPServer` + `query`/`mutation`/`action`/`resource`), default-deny auth, optional cursor pagination
 - [planned] `./builders` — `customQuery`/`customMutation`/`customAction`/`customCtx`
 - [planned] `./errors` — typed `AppError` + HTTP-status map
 - [planned] `./auth` — provider-agnostic `requireIdentity`/`getCurrentSubject`
@@ -58,6 +59,38 @@ const docs = pruneNull(await asyncMap(ids, (id) => ctx.db.get(id)));
 // Non-null assertion
 const doc = nullThrows(await ctx.db.get(id), `Document ${id} not found`);
 ```
+
+### MCP tools — `./mcp`
+
+Expose Convex functions to LLM agents over the Model Context Protocol. The `./mcp` entry is
+tree-shakeable — backend-only consumers pull zero MCP code. It needs two optional peer deps:
+
+```bash
+pnpm add @modelcontextprotocol/sdk zod
+```
+
+```ts
+import { createMCPServer, query, mutation } from "@vllnt/convex-helpers/mcp";
+import { api } from "./_generated/api";
+import { v } from "convex/values";
+
+export const mcp = createMCPServer({
+  auth: { validate: async (key) => key === process.env.MCP_API_KEY },
+  tools: {
+    list_projects: query(api.projects.list, { args: v.object({}), description: "List all projects" }),
+    create_project: mutation(api.projects.create, {
+      args: v.object({ name: v.string() }),
+      description: "Create a project",
+    }),
+  },
+});
+
+// Mount the route handler (e.g. Next.js App Router)
+export const { GET, POST } = mcp.handler();
+```
+
+Migrating from `@vllnt/convex-mcp`? Change the import to `@vllnt/convex-helpers/mcp` — the API is
+identical. See [docs/API.md](./docs/API.md#mcp-tools-mcp) for the full `./mcp` reference.
 
 ## API Reference
 

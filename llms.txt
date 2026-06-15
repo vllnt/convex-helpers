@@ -7,7 +7,9 @@
 Convex backends. It provides pure functions and host-`ctx` glue utilities that run with the host's
 `ctx` — no own tables, no `app.use()` mounting. The library targets `convex@^1.36.1`. Stateful
 concerns (rate limiting, idempotency, flags, etc.) belong in `@convex-dev/*` or `@vllnt/convex-*`
-components.
+components. An optional, tree-shakeable `./mcp` entry exposes Convex functions as Model Context
+Protocol tools (`@vllnt/convex-helpers/mcp`); it needs the optional peer deps
+`@modelcontextprotocol/sdk` and `zod`, so backend-only consumers pull neither.
 
 ## Docs
 
