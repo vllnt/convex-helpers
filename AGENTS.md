@@ -89,13 +89,13 @@ src/
 
 ## Docs sync (MANDATORY)
 
-When any of these change, update the matching docs in the SAME commit (then `pnpm generate:llms`):
+When any of these change, update the matching docs in the SAME commit:
 
 | Changed | Update |
 |---------|--------|
-| Public API (exports, args, returns) | README usage + API table, docs/API.md, llms.txt + llms-full.txt |
+| Public API (exports, args, returns) | README usage + API table, docs/API.md, llms.txt |
 | convex peer range | llms.txt context paragraph + docs/API.md Compatibility line + README |
-| New utility added | README Features + Usage, docs/API.md, llms.txt index, regenerate llms-full.txt |
+| New utility added | README Features + Usage, docs/API.md, llms.txt index |
 | New `exports` entry / peer dep | README, docs/API.md, llms, `package.json` exports + peer deps |
 | Version | CHANGELOG.md entry |
 
