@@ -48,19 +48,19 @@
     }
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "@types/node": "^25.6.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@types/node": "^26.4.0",
     "@typescript/native": "npm:typescript@7.0.2",
-    "@vitest/coverage-v8": "^3.0.0",
-    "@vllnt/eslint-config": "2.0.0-canary.87019a5",
+    "@vitest/coverage-v8": "^4.1.11",
+    "@vllnt/eslint-config": "2.0.0",
     "@vllnt/typescript": "2.0.0",
     "convex": "^1.45.0",
     "convex-test": "^0.0.56",
-    "eslint": "^9.0.0",
-    "prettier": "^3.4.0",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.6",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^3.0.0",
-    "zod": "^4.3.6"
+    "vitest": "^4.1.11",
+    "zod": "^4.5.4"
   },
   "engines": {
     "node": ">=18"

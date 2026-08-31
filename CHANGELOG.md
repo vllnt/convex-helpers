@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Refresh all direct dependencies to their latest compatible releases for canary validation.
 - Require `convex@^1.45.0` and update `convex-test` to `^0.0.56`.
 
 ### Added
