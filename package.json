@@ -27,12 +27,13 @@
     "build": "tsc --project ./tsconfig.build.json",
     "typecheck": "tsc --noEmit && tsc --noEmit --project tsconfig.test.json",
     "typecheck:ci": "tsc --noEmit --project tsconfig.ci.json && tsc --noEmit --project tsconfig.test.json",
-    "lint": "eslint .",
+    "lint": "pnpm check:agents && eslint .",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --typecheck --clearScreen false",
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
     "generate:llms": "node scripts/generate-llms.mjs",
-    "preversion": "pnpm install --frozen-lockfile && pnpm build && pnpm test && pnpm typecheck && pnpm generate:llms"
+    "preversion": "pnpm install --frozen-lockfile && pnpm build && pnpm test && pnpm typecheck && pnpm generate:llms",
+    "check:agents": "node -e \"const f=require('node:fs');if(!f.existsSync('AGENTS.md')||f.existsSync('CLAUDE.md')||f.existsSync('.claude'))process.exit(1)\""
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

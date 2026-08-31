@@ -13,8 +13,12 @@ Typed host-side helpers for Convex backends — builders, errors, validators, re
 pagination, HTTP, env, and observability.
 
 A type-B helpers library (not a sandboxed Convex component) following the vllnt Component Standard
-(see the `convex-components` hub `.claude/rules/component-standard.md`). `CLAUDE.md` is a verbatim
-mirror of this file.
+(see the `oss-packages` hub `AGENTS.md`).
+
+## Agent instructions
+
+`AGENTS.md` is the sole agent-instruction source for this repository. Do not add
+`CLAUDE.md` or `.claude` content.
 
 ## Architecture
 
