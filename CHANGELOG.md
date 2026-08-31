@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Require `convex@^1.45.0` and update `convex-test` to `^0.0.56`.
+
 ### Added
 
 - `./mcp` entry — expose Convex functions as MCP tools (`createMCPServer` + `query`/`mutation`/`action`/`resource`), default-deny auth, lifecycle hooks, validator→zod conversion, and optional HMAC-signed cursor pagination. Absorbed from `@vllnt/convex-mcp` (see ROADMAP `absorb-convex-mcp`). `@modelcontextprotocol/sdk` and `zod` are optional peer deps — the `./mcp` entry is tree-shakeable, so backend-only consumers pull neither. 100% test coverage retained (161 tests).
