@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMCPServer } from "../src/mcp/server.js";
-import { mutation, query } from "../src/mcp/tools/helpers.js";
+import { action, mutation, query } from "../src/mcp/tools/helpers.js";
 import type { CallContext } from "../src/mcp/types.js";
 
 const MOCK_CONVEX_URL = "https://test-deployment.convex.cloud";
@@ -241,6 +241,25 @@ describe("lifecycle hooks", () => {
     }
     expect(before.toolDef.tags).toEqual({ tier: "premium", feature: "projects" });
   });
+
+  it.each(["mutation", "action"] as const)(
+    "rejects unsafe timeouts for non-cancellable %s tools",
+    (type) => {
+      const helper = type === "mutation" ? mutation : action;
+      expect(() =>
+        createMCPServer({
+          auth: { validate: async () => true },
+          convexUrl: MOCK_CONVEX_URL,
+          tools: {
+            unsafe: helper(null, {
+              args: makeValidator("object", { fields: {} }),
+              timeout: 50,
+            }),
+          },
+        }),
+      ).toThrow(/cannot set a timeout.*cannot be cancelled safely/);
+    },
+  );
 
   it("timeout-enabled tool call succeeds when resolved in time", async () => {
     const server = createMCPServer({

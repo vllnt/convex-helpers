@@ -127,12 +127,12 @@ reference as a typed `ToolDef`.
 | `args` | `ConvexValidator` | A `v.object({...})` validator; converted to the tool's JSON-Schema input. |
 | `description` | `string` | Human/LLM-facing tool description. |
 | `tags` | `Record<string, string>` | Arbitrary metadata. |
-| `timeout` | `number` | Per-call timeout (ms). |
+| `timeout` | `number` | Per-call timeout (ms), supported only for queries. Mutation/action timeouts are rejected because their execution cannot be cancelled safely. |
 | `onError` | `(ctx) => HookReturn` | Per-tool error hook. |
 
 ### resource(ref, options)
 
-Wraps a Convex function reference as an MCP resource (`{ args?, description? }`).
+Wraps a Convex function reference as an MCP resource (`{ args?, description? }`). URI parameters are parsed through `args` before dispatch. JSON `int64` strings become `bigint`, base64 `bytes` strings become `ArrayBuffer`, and native Convex results use Convex's lossless tagged JSON encoding.
 
 ### Pagination
 

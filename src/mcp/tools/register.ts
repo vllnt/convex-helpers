@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { z } from "zod";
 
+import { stringifyConvex } from "../serialization.js";
 import type { ConvexClient } from "../types.js";
 import { convexArgsToZod as convexArgumentsToZod } from "../validators.js";
 
@@ -44,6 +45,11 @@ function stripReservedFromShape(
 
 export function prepareTools(tools: Record<string, ToolDef>): PreparedTool[] {
   return Object.entries(tools).map(([name, toolDef]) => {
+    if (toolDef.timeout !== undefined && toolDef.type !== "query") {
+      throw new Error(
+        `Tool "${name}" cannot set a timeout on ${toolDef.type}: Convex execution cannot be cancelled safely`,
+      );
+    }
     const zodSchema = toolDef.args
       ? convexArgumentsToZod(toolDef.args)
       : undefined;
@@ -220,7 +226,7 @@ export function registerTools(
           return {
             content: [
               {
-                text: JSON.stringify(result ?? null, null, 2),
+                text: stringifyConvex(result),
                 type: "text" as const,
               },
             ],

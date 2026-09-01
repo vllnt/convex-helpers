@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Convert MCP `int64` and `bytes` inputs to native Convex values and serialize native Convex
+  results with lossless tagged JSON.
+- Enforce resource argument validators before dispatch and reject unsafe mutation/action
+  timeouts that could report failure while non-cancellable side effects continue.
+
 ### Changed
 
 - Refresh all direct dependencies to their latest compatible releases for canary validation.
