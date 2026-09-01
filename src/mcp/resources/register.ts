@@ -1,11 +1,14 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { stringifyConvex } from "../serialization.js";
 import type { ConvexClient } from "../types.js";
+import { convexArgsToZod } from "../validators.js";
 
 import type { ResourceDef } from "./types.js";
 
 type PreparedResource = {
+  argsSchema: ReturnType<typeof convexArgsToZod> | undefined;
   description: string | undefined;
   resourceDef: ResourceDef;
   template: ResourceTemplate;
@@ -16,6 +19,9 @@ export function prepareResources(
   resources: Record<string, ResourceDef>,
 ): PreparedResource[] {
   return Object.entries(resources).map(([uriPattern, resourceDef]) => ({
+    argsSchema: resourceDef.args
+      ? convexArgsToZod(resourceDef.args)
+      : undefined,
     description: resourceDef.description,
     resourceDef,
     template: new ResourceTemplate(uriPattern, { list: undefined }),
@@ -28,7 +34,13 @@ export function registerResources(
   client: ConvexClient,
   resources: PreparedResource[],
 ): void {
-  for (const { description, resourceDef, template, uriPattern } of resources) {
+  for (const {
+    argsSchema,
+    description,
+    resourceDef,
+    template,
+    uriPattern,
+  } of resources) {
     mcpServer.resource(
       uriPattern,
       template,
@@ -38,12 +50,17 @@ export function registerResources(
       },
       async (uri, parameters: Record<string, unknown>) => {
         try {
-          const result = await client.query(resourceDef.ref, parameters);
+          const validatedParameters =
+            argsSchema?.parse(parameters) ?? parameters;
+          const result = await client.query(
+            resourceDef.ref,
+            validatedParameters,
+          );
           return {
             contents: [
               {
                 mimeType: "application/json",
-                text: JSON.stringify(result ?? null, null, 2),
+                text: stringifyConvex(result),
                 uri: uri.href,
               },
             ],

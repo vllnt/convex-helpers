@@ -313,6 +313,46 @@ describe("resource read", () => {
     expect(response.status).toBe(200);
   });
 
+  it("validates and transforms URI parameters before dispatch", async () => {
+    const server = createTestServer({
+      resources: {
+        "counter://{value}": resource(null, {
+          args: makeValidator("object", {
+            fields: { value: makeValidator("int64") },
+          }),
+        }),
+      },
+    });
+    const handler = server.handler();
+    const mockClient = await getMockClient();
+    mockClient.query.mockResolvedValueOnce({ value: 42n });
+
+    const response = await handler.POST(mcpRequest("resources/read", {
+      uri: "counter://42",
+    }));
+    expect(response.status).toBe(200);
+    expect(mockClient.query).toHaveBeenLastCalledWith(null, { value: 42n });
+    const data = await parseSSEResponse(response);
+    expect(JSON.parse(data.result.contents[0].text)).toEqual({
+      value: { $integer: "KgAAAAAAAAA=" },
+    });
+  });
+
+  it("dispatches resources without an args validator", async () => {
+    const server = createTestServer({
+      resources: { "health://status": resource(null) },
+    });
+    const handler = server.handler();
+    const mockClient = await getMockClient();
+    mockClient.query.mockResolvedValueOnce("ok");
+
+    const response = await handler.POST(mcpRequest("resources/read", {
+      uri: "health://status",
+    }));
+    expect(response.status).toBe(200);
+    expect(mockClient.query).toHaveBeenLastCalledWith(null, {});
+  });
+
   it("returns error when resource read fails", async () => {
     const server = createTestServer();
     const handler = server.handler();

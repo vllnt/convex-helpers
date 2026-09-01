@@ -35,15 +35,21 @@ describe("convertValidator", () => {
     expect(() => schema.parse(undefined)).toThrow();
   });
 
-  it("converts int64 to string with description", () => {
+  it("converts JSON int64 strings to bounded bigint values", () => {
     const schema = convertValidator(makeValidator("int64"));
-    expect(schema.parse("12345")).toBe("12345");
+    expect(schema.parse("12345")).toBe(12345n);
+    expect(schema.parse("-9223372036854775808")).toBe(-(1n << 63n));
+    expect(() => schema.parse("9223372036854775808")).toThrow();
+    expect(() => schema.parse("1.5")).toThrow();
     expect(schema.description).toContain("64-bit integer");
   });
 
-  it("converts bytes to string with description", () => {
+  it("converts base64 JSON strings to ArrayBuffer values", () => {
     const schema = convertValidator(makeValidator("bytes"));
-    expect(schema.parse("base64data")).toBe("base64data");
+    expect(new Uint8Array(schema.parse("AQID") as ArrayBuffer)).toEqual(
+      new Uint8Array([1, 2, 3]),
+    );
+    expect(() => schema.parse("%%%" )).toThrow();
     expect(schema.description).toContain("base64");
   });
 

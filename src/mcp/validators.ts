@@ -65,12 +65,33 @@ function convertKind(validator: ConvexValidator): z.ZodTypeAny {
     case "int64":
       return z
         .string()
+        .regex(/^-?\d+$/, "Expected a decimal 64-bit integer string")
+        .refine((value) => {
+          const parsed = BigInt(value);
+          return parsed >= -(1n << 63n) && parsed <= (1n << 63n) - 1n;
+        }, "Integer is outside the signed 64-bit range")
+        .transform(BigInt)
         .describe(
-          "64-bit integer as string (BigInt — JSON cannot represent bigint)",
+          "64-bit integer as string (converted to BigInt before Convex dispatch)",
         );
 
     case "bytes":
-      return z.string().describe("Binary data as base64-encoded string");
+      return z
+        .string()
+        .refine((value) => {
+          try {
+            atob(value);
+            return true;
+          } catch {
+            return false;
+          }
+        }, "Expected base64-encoded binary data")
+        .transform(
+          (value) =>
+            Uint8Array.from(atob(value), (character) => character.charCodeAt(0))
+              .buffer,
+        )
+        .describe("Binary data as base64-encoded string");
 
     case "id":
       return z
