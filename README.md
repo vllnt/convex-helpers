@@ -26,10 +26,11 @@ See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 - `asyncMap` — parallel async map that preserves order
 - `pruneNull` — filter null/undefined from arrays
 - `nullThrows` — non-null assertion with typed `NullDocumentError`
+- `./better-auth` — fail-closed trusted origins + HTTPS cookies for better-auth
+- `./identity` — `getOrCreateFromAuth` / `retargetRows` (anonymous bootstrap + upgrade)
 - `./mcp` — expose Convex functions as MCP tools (`createMCPServer` + `query`/`mutation`/`action`/`resource`), default-deny auth, optional cursor pagination
 - [planned] `./builders` — `customQuery`/`customMutation`/`customAction`/`customCtx`
 - [planned] `./errors` — typed `AppError` + HTTP-status map
-- [planned] `./auth` — provider-agnostic `requireIdentity`/`getCurrentSubject`
 - [planned] `./env` — `defineEnv(zodSchema)` cold-start validation
 - [planned] `./tracing` — span emit + `traceparent` propagation via `@vllnt/logger`
 - [planned] `./testing` — fixture factories + `withIdentity`

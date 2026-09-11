@@ -5,6 +5,8 @@ const files = [
   "CHANGELOG.md",
   "docs/API.md",
   "src/index.ts",
+  "src/better-auth.ts",
+  "src/identity.ts",
   "src/mcp/index.ts",
 ];
 

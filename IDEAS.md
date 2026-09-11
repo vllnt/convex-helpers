@@ -64,3 +64,10 @@ export const handleStripe = createWebhookHandler({
 **Blocked-on (Rule of Three):** the two source consumers above migrate off `convex-webhook` onto
 `convex-helpers/./http` + `convex-idempotency` (hub `retire-webhook-mcp.3`), confirming the seam on
 ≥2 real backends.
+
+
+## `./better-auth` + `./identity` (shipped on this branch)
+
+**Source:** copied 5× across Anthm daily games + songtrivia. Host-`ctx` only — not a component.
+Anonymous auth stays `@convex-dev/better-auth`; these helpers are the glue (origins, get-or-create
+host user, retarget on link).

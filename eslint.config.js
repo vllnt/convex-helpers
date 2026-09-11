@@ -15,6 +15,13 @@ export default [
   ...base,
   // Test files: relax rules that conflict with testing null-handling code
   {
+    files: ["src/identity.ts"],
+    rules: {
+      // Convex `getUserIdentity()` is `null` when signed out.
+      "unicorn/no-null": "off",
+    },
+  },
+  {
     files: ["src/**/*.test.ts"],
     rules: {
       "unicorn/no-null": "off",

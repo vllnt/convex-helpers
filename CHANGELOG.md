@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `./better-auth` — fail-closed trusted-origin parser + HTTPS cookie settings for `@convex-dev/better-auth` (does not import better-auth).
+- `./identity` — `getOrCreateFromAuth` / `requireFromAuth` / `retargetRows` host-`ctx` glue for anonymous sessions and anonymous→identified upgrades.
 - `./mcp` entry — expose Convex functions as MCP tools (`createMCPServer` + `query`/`mutation`/`action`/`resource`), default-deny auth, lifecycle hooks, validator→zod conversion, and optional HMAC-signed cursor pagination. Absorbed from `@vllnt/convex-mcp` (see ROADMAP `absorb-convex-mcp`). `@modelcontextprotocol/sdk` and `zod` are optional peer deps — the `./mcp` entry is tree-shakeable, so backend-only consumers pull neither. 100% test coverage retained (161 tests).
 
 ## [0.1.0] - 2026-06-13

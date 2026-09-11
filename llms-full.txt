@@ -34,10 +34,11 @@ See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 - `asyncMap` — parallel async map that preserves order
 - `pruneNull` — filter null/undefined from arrays
 - `nullThrows` — non-null assertion with typed `NullDocumentError`
+- `./better-auth` — fail-closed trusted origins + HTTPS cookies for better-auth
+- `./identity` — `getOrCreateFromAuth` / `retargetRows` (anonymous bootstrap + upgrade)
 - `./mcp` — expose Convex functions as MCP tools (`createMCPServer` + `query`/`mutation`/`action`/`resource`), default-deny auth, optional cursor pagination
 - [planned] `./builders` — `customQuery`/`customMutation`/`customAction`/`customCtx`
 - [planned] `./errors` — typed `AppError` + HTTP-status map
-- [planned] `./auth` — provider-agnostic `requireIdentity`/`getCurrentSubject`
 - [planned] `./env` — `defineEnv(zodSchema)` cold-start validation
 - [planned] `./tracing` — span emit + `traceparent` propagation via `@vllnt/logger`
 - [planned] `./testing` — fixture factories + `withIdentity`
@@ -160,6 +161,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `./better-auth` — fail-closed trusted-origin parser + HTTPS cookie settings for `@convex-dev/better-auth` (does not import better-auth).
+- `./identity` — `getOrCreateFromAuth` / `requireFromAuth` / `retargetRows` host-`ctx` glue for anonymous sessions and anonymous→identified upgrades.
 - `./mcp` entry — expose Convex functions as MCP tools (`createMCPServer` + `query`/`mutation`/`action`/`resource`), default-deny auth, lifecycle hooks, validator→zod conversion, and optional HMAC-signed cursor pagination. Absorbed from `@vllnt/convex-mcp` (see ROADMAP `absorb-convex-mcp`). `@modelcontextprotocol/sdk` and `zod` are optional peer deps — the `./mcp` entry is tree-shakeable, so backend-only consumers pull neither. 100% test coverage retained (161 tests).
 
 ## [0.1.0] - 2026-06-13
@@ -345,6 +348,36 @@ Cursors are HMAC-signed per server instance and verified in constant time.
 
 Every response carries an `X-Request-Id` header.
 
+
+## `./better-auth` (shipped)
+
+Fail-closed origin parsing and HTTPS cookie attributes for `@convex-dev/better-auth`.
+Does **not** import better-auth — the host still calls `betterAuth({...})`.
+
+```ts
+import {
+  cookieSettingsForSite,
+  trustedOriginsFromCsv,
+} from "@vllnt/convex-helpers/better-auth";
+```
+
+## `./identity` (shipped)
+
+Host-`ctx` mapping from `ctx.auth.getUserIdentity()` to a host row, plus retarget
+counts when an anonymous subject upgrades.
+
+```ts
+import { getOrCreateFromAuth, retargetRows } from "@vllnt/convex-helpers/identity";
+
+const user = await getOrCreateFromAuth(ctx, {
+  lookup: (subject) => ctx.db.query("users").withIndex("by_betterauth_id", q => q.eq("betterAuthId", subject)).unique(),
+  insert: async (subject) => {
+    const id = await ctx.db.insert("users", { betterAuthId: subject });
+    return (await ctx.db.get(id))!;
+  },
+});
+```
+
 ## Planned modules
 
 The following modules are on the roadmap but not yet shipped. See [ROADMAP.md](../ROADMAP.md) for
@@ -354,7 +387,7 @@ milestones and exit criteria.
 |--------|--------|-------------|
 | `./builders` | [planned] | `customQuery`/`customMutation`/`customAction`/`customCtx` + composition |
 | `./errors` | [planned] | `AppError(code)` + HTTP-status map + `toResponse()` |
-| `./auth` | [planned] | `requireIdentity(ctx)` / `getCurrentSubject(ctx)` over `ctx.auth` |
+| `./auth` | shipped as `./identity` | see `./identity` |
 | `./env` | [planned] | `defineEnv(zodSchema)` cold-start validation |
 | `./tracing` | [planned] | span emit + `traceparent` propagation |
 | `./testing` | [planned] | `register(t)` + fixture factories + `withIdentity` |
@@ -433,6 +466,227 @@ export function nullThrows<T>(
     throw new NullDocumentError(message);
   }
   return value;
+}
+```
+
+---
+
+## src/better-auth.ts
+
+```ts
+/**
+ * Fail-closed origin and cookie helpers for `@convex-dev/better-auth`.
+ * Does not import better-auth — the host still constructs `betterAuth(...)`.
+ */
+
+export type CookieSettings = {
+  advanced: {
+    defaultCookieAttributes: {
+      httpOnly: true;
+      sameSite: "none";
+      secure: true;
+    };
+    useSecureCookies: true;
+  };
+};
+
+function hasControlCharacter(value: string): boolean {
+  // Control-character detection is the point of this helper.
+  // eslint-disable-next-line no-control-regex -- C0 + DEL
+  return /[\u0000-\u001F\u007F]/u.test(value);
+}
+
+function httpsOrigin(trimmed: string): string | undefined {
+  try {
+    const url = new URL(trimmed);
+    if (
+      url.protocol !== "https:" ||
+      url.username !== "" ||
+      url.password !== "" ||
+      url.pathname !== "/" ||
+      url.search !== "" ||
+      url.hash !== "" ||
+      (trimmed !== url.origin && trimmed !== `${url.origin}/`)
+    ) {
+      return undefined;
+    }
+    return url.origin;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Parse one origin. HTTPS, no credentials/path/query/hash, no wildcards
+ * except an exact `previewPattern` (e.g. `https://app-*-org.vercel.app`).
+ */
+export function parseTrustedOrigin(
+  origin: string,
+  options: { previewPattern?: string } = {},
+): string | undefined {
+  const trimmed = origin.trim();
+  if (trimmed === "") return undefined;
+  if (hasControlCharacter(trimmed)) return undefined;
+  if (
+    options.previewPattern !== undefined &&
+    trimmed === options.previewPattern
+  ) {
+    return trimmed;
+  }
+  if (
+    !trimmed.startsWith("https://") ||
+    trimmed.includes("*") ||
+    trimmed.includes("?")
+  ) {
+    return undefined;
+  }
+  return httpsOrigin(trimmed);
+}
+
+/**
+ * Merge `siteUrl` with a comma-separated extra list. Returns `undefined` when
+ * nothing extra survived parsing — the host then omits `trustedOrigins` and
+ * better-auth keeps its default trust.
+ */
+export function trustedOriginsFromList(
+  siteUrl: string,
+  extra: readonly string[],
+  options: { previewPattern?: string } = {},
+): string[] | undefined {
+  const parsed = extra
+    .map((origin) => parseTrustedOrigin(origin, options))
+    .filter((origin): origin is string => origin !== undefined);
+  if (parsed.length === 0) return undefined;
+  return [siteUrl, ...parsed];
+}
+
+export function trustedOriginsFromCsv(
+  siteUrl: string,
+  csv: string,
+  options: { previewPattern?: string } = {},
+): string[] | undefined {
+  return trustedOriginsFromList(siteUrl, csv.split(","), options);
+}
+
+/** Secure cross-site cookies when `siteUrl` is HTTPS; otherwise `undefined`. */
+export function cookieSettingsForSite(
+  siteUrl: string,
+): CookieSettings | undefined {
+  if (!siteUrl.startsWith("https://")) return undefined;
+  return {
+    advanced: {
+      defaultCookieAttributes: {
+        httpOnly: true,
+        sameSite: "none",
+        secure: true,
+      },
+      useSecureCookies: true,
+    },
+  };
+}
+```
+
+---
+
+## src/identity.ts
+
+```ts
+/**
+ * Host-ctx identity glue: map `ctx.auth` to a host row, and retarget rows when
+ * an anonymous subject upgrades. Writes the **host's** tables — not a component.
+ */
+
+import { ConvexError } from "convex/values";
+
+export type AuthIdentity = {
+  isAnonymous?: unknown;
+  subject: string;
+};
+
+export type AuthCtx = {
+  auth: {
+    getUserIdentity: () => Promise<AuthIdentity | null>;
+  };
+};
+
+export function isAnonymousIdentity(identity: AuthIdentity): boolean {
+  return identity.isAnonymous === true;
+}
+
+export async function requireIdentity(ctx: AuthCtx): Promise<AuthIdentity> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity === null) {
+    throw new ConvexError({
+      code: "UNAUTHENTICATED",
+      message: "Sign-in required.",
+    });
+  }
+  return identity;
+}
+
+/**
+ * Query-side lookup. Returns null when unauthenticated or the host row is not
+ * there yet (BetterAuth `onCreate` can lag a fresh anonymous session).
+ */
+export async function getFromAuth<T extends object>(
+  ctx: AuthCtx,
+  lookup: (subject: string) => Promise<null | T>,
+): Promise<null | (T & { isAnonymous: boolean })> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity === null) return null;
+  const row = await lookup(identity.subject);
+  if (row === null) return null;
+  return { ...row, isAnonymous: isAnonymousIdentity(identity) };
+}
+
+export async function requireFromAuth<T extends object>(
+  ctx: AuthCtx,
+  lookup: (subject: string) => Promise<null | T>,
+): Promise<T & { isAnonymous: boolean }> {
+  const user = await getFromAuth(ctx, lookup);
+  if (user === null) {
+    throw new ConvexError({
+      code: "USER_NOT_INITIALIZED",
+      message: "User not initialized — the auth session may still be settling.",
+    });
+  }
+  return user;
+}
+
+/**
+ * Mutation-side: look up the host row for the current identity, or insert it.
+ * Closes the race between BetterAuth `onCreate` and the first authed write.
+ */
+export async function getOrCreateFromAuth<T extends object>(
+  ctx: AuthCtx,
+  handlers: {
+    insert: (subject: string) => Promise<T>;
+    lookup: (subject: string) => Promise<null | T>;
+  },
+): Promise<T & { isAnonymous: boolean }> {
+  const identity = await requireIdentity(ctx);
+  const existing = await handlers.lookup(identity.subject);
+  const row = existing ?? (await handlers.insert(identity.subject));
+  return { ...row, isAnonymous: isAnonymousIdentity(identity) };
+}
+
+/**
+ * Apply a host patch to every row keyed by `fromRef`. The host decides skip /
+ * merge / patch; this runs the loop and counts outcomes.
+ */
+export async function retargetRows<T>(
+  rows: readonly T[],
+  apply: (row: T) => Promise<"deleted" | "patched" | "skipped">,
+): Promise<{ deleted: number; patched: number; skipped: number }> {
+  const result = { deleted: 0, patched: 0, skipped: 0 };
+  const applyOne = async (index: number): Promise<void> => {
+    if (index >= rows.length) return;
+    const outcome = await apply(rows[index] as T);
+    result[outcome] += 1;
+    await applyOne(index + 1);
+  };
+  await applyOne(0);
+  return result;
 }
 ```
 

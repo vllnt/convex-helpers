@@ -165,6 +165,36 @@ Cursors are HMAC-signed per server instance and verified in constant time.
 
 Every response carries an `X-Request-Id` header.
 
+
+## `./better-auth` (shipped)
+
+Fail-closed origin parsing and HTTPS cookie attributes for `@convex-dev/better-auth`.
+Does **not** import better-auth — the host still calls `betterAuth({...})`.
+
+```ts
+import {
+  cookieSettingsForSite,
+  trustedOriginsFromCsv,
+} from "@vllnt/convex-helpers/better-auth";
+```
+
+## `./identity` (shipped)
+
+Host-`ctx` mapping from `ctx.auth.getUserIdentity()` to a host row, plus retarget
+counts when an anonymous subject upgrades.
+
+```ts
+import { getOrCreateFromAuth, retargetRows } from "@vllnt/convex-helpers/identity";
+
+const user = await getOrCreateFromAuth(ctx, {
+  lookup: (subject) => ctx.db.query("users").withIndex("by_betterauth_id", q => q.eq("betterAuthId", subject)).unique(),
+  insert: async (subject) => {
+    const id = await ctx.db.insert("users", { betterAuthId: subject });
+    return (await ctx.db.get(id))!;
+  },
+});
+```
+
 ## Planned modules
 
 The following modules are on the roadmap but not yet shipped. See [ROADMAP.md](../ROADMAP.md) for
@@ -174,7 +204,7 @@ milestones and exit criteria.
 |--------|--------|-------------|
 | `./builders` | [planned] | `customQuery`/`customMutation`/`customAction`/`customCtx` + composition |
 | `./errors` | [planned] | `AppError(code)` + HTTP-status map + `toResponse()` |
-| `./auth` | [planned] | `requireIdentity(ctx)` / `getCurrentSubject(ctx)` over `ctx.auth` |
+| `./auth` | shipped as `./identity` | see `./identity` |
 | `./env` | [planned] | `defineEnv(zodSchema)` cold-start validation |
 | `./tracing` | [planned] | span emit + `traceparent` propagation |
 | `./testing` | [planned] | `register(t)` + fixture factories + `withIdentity` |

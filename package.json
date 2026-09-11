@@ -1,7 +1,7 @@
 {
   "name": "@vllnt/convex-helpers",
   "version": "0.1.0",
-  "description": "Typed host-side helpers for Convex backends — builders, errors, validators, relationships, pagination, HTTP, env, and observability.",
+  "description": "Typed host-side helpers for Convex backends \u2014 builders, errors, validators, relationships, pagination, HTTP, env, and observability.",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@9.15.4",
@@ -18,6 +18,14 @@
     "./mcp": {
       "types": "./dist/mcp/index.d.ts",
       "default": "./dist/mcp/index.js"
+    },
+    "./better-auth": {
+      "types": "./dist/better-auth.d.ts",
+      "default": "./dist/better-auth.js"
+    },
+    "./identity": {
+      "types": "./dist/identity.d.ts",
+      "default": "./dist/identity.js"
     }
   },
   "types": "./dist/index.d.ts",
