@@ -79,19 +79,17 @@ export async function getOrCreateFromAuth<T extends object>(
 
 /**
  * Apply a host patch to every row keyed by `fromRef`. The host decides skip /
- * merge / patch; this runs the loop and counts outcomes.
+ * merge / patch; this runs the work and counts outcomes.
  */
 export async function retargetRows<T>(
   rows: readonly T[],
   apply: (row: T) => Promise<"deleted" | "patched" | "skipped">,
 ): Promise<{ deleted: number; patched: number; skipped: number }> {
-  const result = { deleted: 0, patched: 0, skipped: 0 };
-  const applyOne = async (index: number): Promise<void> => {
-    if (index >= rows.length) return;
-    const outcome = await apply(rows[index] as T);
-    result[outcome] += 1;
-    await applyOne(index + 1);
-  };
-  await applyOne(0);
-  return result;
+  const outcomes = await Promise.all(rows.map(async (row) => apply(row)));
+  return outcomes.reduce(
+    (accumulator, outcome) => {
+      return { ...accumulator, [outcome]: accumulator[outcome] + 1 };
+    },
+    { deleted: 0, patched: 0, skipped: 0 },
+  );
 }

@@ -15,6 +15,18 @@ describe("parseTrustedOrigin", () => {
     expect(parseTrustedOrigin("   ")).toBeUndefined();
     expect(parseTrustedOrigin("https://ok.example\u0001")).toBeUndefined();
     expect(parseTrustedOrigin("http://ok.example")).toBeUndefined();
+    expect(parseTrustedOrigin("http://localhost:3211")).toBe(
+      "http://localhost:3211",
+    );
+    expect(parseTrustedOrigin("http://127.0.0.1:3211")).toBe(
+      "http://127.0.0.1:3211",
+    );
+    expect(parseTrustedOrigin("http://localhost.evil.com")).toBeUndefined();
+    expect(parseTrustedOrigin("http://user@localhost")).toBeUndefined();
+    expect(parseTrustedOrigin("http://localhost/?x=1")).toBeUndefined();
+    expect(parseTrustedOrigin("http://localhost/#h")).toBeUndefined();
+    expect(parseTrustedOrigin("http://localhost:[")).toBeUndefined();
+    expect(parseTrustedOrigin("http://[")).toBeUndefined();
     expect(parseTrustedOrigin("https://*.example")).toBeUndefined();
     expect(parseTrustedOrigin("https://ok.example?x=1")).toBeUndefined();
     expect(parseTrustedOrigin("not a url")).toBeUndefined();
@@ -57,6 +69,12 @@ describe("trustedOriginsFromList / csv", () => {
       "https://site.example",
       "https://a.example",
       "https://b.example",
+    ]);
+    expect(
+      trustedOriginsFromList("http://localhost:3211", ["https://a.example"]),
+    ).toEqual(["http://localhost:3211", "https://a.example"]);
+    expect(trustedOriginsFromList("not-a-url", ["https://a.example"])).toEqual([
+      "https://a.example",
     ]);
   });
 });

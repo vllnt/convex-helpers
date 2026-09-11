@@ -20,6 +20,13 @@ function hasControlCharacter(value: string): boolean {
   return /[\u0000-\u001F\u007F]/u.test(value);
 }
 
+function isLocalHttp(origin: string): boolean {
+  return (
+    origin.startsWith("http://localhost") ||
+    origin.startsWith("http://127.0.0.1")
+  );
+}
+
 function httpsOrigin(trimmed: string): string | undefined {
   try {
     const url = new URL(trimmed);
@@ -31,6 +38,25 @@ function httpsOrigin(trimmed: string): string | undefined {
       url.search !== "" ||
       url.hash !== "" ||
       (trimmed !== url.origin && trimmed !== `${url.origin}/`)
+    ) {
+      return undefined;
+    }
+    return url.origin;
+  } catch {
+    return undefined;
+  }
+}
+
+function localHttpOrigin(trimmed: string): string | undefined {
+  try {
+    const url = new URL(trimmed);
+    if (
+      url.protocol !== "http:" ||
+      url.username !== "" ||
+      url.password !== "" ||
+      (url.hostname !== "localhost" && url.hostname !== "127.0.0.1") ||
+      url.search !== "" ||
+      url.hash !== ""
     ) {
       return undefined;
     }
@@ -57,6 +83,9 @@ export function parseTrustedOrigin(
   ) {
     return trimmed;
   }
+  if (isLocalHttp(trimmed)) {
+    return localHttpOrigin(trimmed);
+  }
   if (
     !trimmed.startsWith("https://") ||
     trimmed.includes("*") ||
@@ -68,9 +97,9 @@ export function parseTrustedOrigin(
 }
 
 /**
- * Merge `siteUrl` with a comma-separated extra list. Returns `undefined` when
- * nothing extra survived parsing — the host then omits `trustedOrigins` and
- * better-auth keeps its default trust.
+ * Merge `siteUrl` with extra origins. Returns `undefined` when nothing extra
+ * survived parsing — the host then omits `trustedOrigins`.
+ * `siteUrl` uses the same rules (localhost HTTP allowed).
  */
 export function trustedOriginsFromList(
   siteUrl: string,
@@ -81,7 +110,11 @@ export function trustedOriginsFromList(
     .map((origin) => parseTrustedOrigin(origin, options))
     .filter((origin): origin is string => origin !== undefined);
   if (parsed.length === 0) return undefined;
-  return [siteUrl, ...parsed];
+  const site = parseTrustedOrigin(siteUrl, options);
+  if (site === undefined) {
+    return parsed;
+  }
+  return [site, ...parsed];
 }
 
 export function trustedOriginsFromCsv(
