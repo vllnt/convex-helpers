@@ -98,6 +98,43 @@ export const mcp = createMCPServer({
 export const { GET, POST } = mcp.handler();
 ```
 
+### Better-auth origins — `./better-auth`
+
+Fail-closed trusted-origin parsing and HTTPS cookie attributes. Does **not** import
+`better-auth` — the host still calls `betterAuth({...})`.
+
+```ts
+import {
+  cookieSettingsForSite,
+  trustedOriginsFromCsv,
+} from "@vllnt/convex-helpers/better-auth";
+
+const trustedOrigins = trustedOriginsFromCsv(
+  process.env.CONVEX_SITE_URL ?? "http://localhost:3211",
+  process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "",
+);
+```
+
+### Identity — `./identity`
+
+Map `ctx.auth.getUserIdentity()` to a host row, and retarget rows when anonymous
+upgrades to identified.
+
+```ts
+import { getOrCreateFromAuth, retargetRows } from "@vllnt/convex-helpers/identity";
+
+const user = await getOrCreateFromAuth(ctx, {
+  lookup: (subject) =>
+    ctx.db.query("users").withIndex("by_betterauth_id", (q) =>
+      q.eq("betterAuthId", subject),
+    ).unique(),
+  insert: async (subject) => {
+    const id = await ctx.db.insert("users", { betterAuthId: subject });
+    return (await ctx.db.get(id))!;
+  },
+});
+```
+
 Migrating from `@vllnt/convex-mcp`? Change the import to `@vllnt/convex-helpers/mcp` — the API is
 identical. See [docs/API.md](./docs/API.md#mcp-tools-mcp) for the full `./mcp` reference.
 
