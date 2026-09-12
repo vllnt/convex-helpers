@@ -65,13 +65,8 @@ export function registerResources(
               },
             ],
           };
-        } catch (error) {
-          console.error("[convex-mcp] resource read failed", {
-            error,
-            resource: uriPattern,
-          });
-          // Mask the raw Convex error from the client (parity with the tool
-          // handler); the real error is logged server-side above.
+        } catch {
+          // Do not log raw exceptions: provider errors may contain secrets.
           throw new Error("Resource read failed");
         }
       },

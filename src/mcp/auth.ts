@@ -1,3 +1,4 @@
+import { policyCallback } from "./callback.js";
 import type { AuthConfig } from "./types.js";
 
 export function extractApiKey(request: Request): string | undefined {
@@ -33,21 +34,35 @@ export async function validateRequest(
     };
   }
 
-  const isValid = await auth.validate(apiKey);
-  if (!isValid) {
+  try {
+    const isValid = await policyCallback(() => auth.validate(apiKey));
+    if (!isValid) {
+      return {
+        response: new Response(JSON.stringify({ error: "Invalid API key." }), {
+          headers: { "Content-Type": "application/json" },
+          status: 401,
+        }),
+        valid: false,
+      };
+    }
+
+    let convexToken: string | undefined;
+    if (auth.convexToken) {
+      const resolveToken = auth.convexToken;
+      convexToken = await policyCallback(() => resolveToken(apiKey));
+    }
+
+    return { apiKey, convexToken, valid: true };
+  } catch {
     return {
-      response: new Response(JSON.stringify({ error: "Invalid API key." }), {
-        headers: { "Content-Type": "application/json" },
-        status: 401,
-      }),
+      response: new Response(
+        JSON.stringify({ error: "Authentication failed." }),
+        {
+          headers: { "Content-Type": "application/json" },
+          status: 401,
+        },
+      ),
       valid: false,
     };
   }
-
-  let convexToken: string | undefined;
-  if (auth.convexToken) {
-    convexToken = await auth.convexToken(apiKey);
-  }
-
-  return { apiKey, convexToken, valid: true };
 }

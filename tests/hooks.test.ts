@@ -332,7 +332,8 @@ describe("lifecycle hooks", () => {
     expect(response.headers.get("X-Request-Id")).toBeTruthy();
   });
 
-  it("hook error does not crash server (AC-E1)", async () => {
+  it("before hook errors deny dispatch without leaking secrets", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const server = createMCPServer({
       auth: { validate: async () => true },
       convexUrl: MOCK_CONVEX_URL,
@@ -345,7 +346,44 @@ describe("lifecycle hooks", () => {
     const response = await server.handler().POST(mcpRequest("tools/call", { name: "list", arguments: {} }));
     expect(response.status).toBe(200);
     const data = await parseSSEResponse(response);
-    expect(data.result.content[0].text).toBeDefined();
+    expect(data.result.content[0].text).toBe("Tool call rejected");
+    expect(data.result.isError).toBe(true);
+    const client = await getMockClient();
+    expect(client.query).not.toHaveBeenCalled();
+    expect(client.mutation).not.toHaveBeenCalled();
+    expect(client.action).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+
+  it("a stalled before hook times out without dispatch", async () => {
+    vi.useFakeTimers();
+    try {
+      const server = createMCPServer({
+        auth: { validate: async () => true }, convexUrl: MOCK_CONVEX_URL,
+        hooks: { onToolCall: () => new Promise<never>(() => {}) },
+        tools: { list: query(null, { args: makeValidator("object", { fields: {} }) }) },
+      });
+      const response = server.handler().POST(mcpRequest("tools/call", { name: "list", arguments: {} }));
+      await vi.advanceTimersByTimeAsync(10_001);
+      const data = await parseSSEResponse(await response);
+      expect(data.result.content[0].text).toBe("Tool call rejected");
+      expect((await getMockClient()).query).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("telemetry hook errors do not change completed dispatch", async () => {
+    const server = createMCPServer({
+      auth: { validate: async () => true },
+      convexUrl: MOCK_CONVEX_URL,
+      hooks: { onToolCall: async (ctx) => {
+        if (ctx.phase === "success") throw new Error("secret");
+      } },
+      tools: { list: query(null, { args: makeValidator("object", { fields: {} }) }) },
+    });
+    const data = await parseSSEResponse(await server.handler().POST(mcpRequest("tools/call", { name: "list", arguments: {} })));
+    expect(data.result.isError).toBeUndefined();
+    expect((await getMockClient()).query).toHaveBeenCalledOnce();
   });
 
   it("no hooks = existing behavior unchanged (AC-E2)", async () => {

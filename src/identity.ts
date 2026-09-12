@@ -7,6 +7,7 @@ import { ConvexError } from "convex/values";
 
 export type AuthIdentity = {
   isAnonymous?: unknown;
+  issuer?: string;
   subject: string;
 };
 
@@ -14,10 +15,24 @@ export type AuthCtx = {
   auth: {
     getUserIdentity: () => Promise<AuthIdentity | null>;
   };
+  /** Host-configured issuer; never accept this value from request arguments. */
+  trustedIssuer?: string;
 };
 
 export function isAnonymousIdentity(identity: AuthIdentity): boolean {
   return identity.isAnonymous === true;
+}
+
+function assertTrustedIssuer(ctx: AuthCtx, identity: AuthIdentity): void {
+  if (
+    ctx.trustedIssuer !== undefined &&
+    identity.issuer !== ctx.trustedIssuer
+  ) {
+    throw new ConvexError({
+      code: "UNAUTHENTICATED",
+      message: "Untrusted issuer.",
+    });
+  }
 }
 
 export async function requireIdentity(ctx: AuthCtx): Promise<AuthIdentity> {
@@ -28,6 +43,7 @@ export async function requireIdentity(ctx: AuthCtx): Promise<AuthIdentity> {
       message: "Sign-in required.",
     });
   }
+  assertTrustedIssuer(ctx, identity);
   return identity;
 }
 
@@ -41,6 +57,7 @@ export async function getFromAuth<T extends object>(
 ): Promise<null | (T & { isAnonymous: boolean })> {
   const identity = await ctx.auth.getUserIdentity();
   if (identity === null) return null;
+  assertTrustedIssuer(ctx, identity);
   const row = await lookup(identity.subject);
   if (row === null) return null;
   return { ...row, isAnonymous: isAnonymousIdentity(identity) };
@@ -62,7 +79,9 @@ export async function requireFromAuth<T extends object>(
 
 /**
  * Mutation-side: look up the host row for the current identity, or insert it.
- * Closes the race between BetterAuth `onCreate` and the first authed write.
+ * Atomic when both callbacks use the SAME Convex mutation transaction,
+ * including an indexed lookup; every competing writer must use that lookup.
+ * Actions, remote calls and nontransactional callbacks do not provide uniqueness.
  */
 export async function getOrCreateFromAuth<T extends object>(
   ctx: AuthCtx,
@@ -78,18 +97,25 @@ export async function getOrCreateFromAuth<T extends object>(
 }
 
 /**
- * Apply a host patch to every row keyed by `fromRef`. The host decides skip /
- * merge / patch; this runs the work and counts outcomes.
+ * Process at most 1000 rows sequentially (one callback in flight).
+ * The host owns authorization, page size, continuation, conflict resolution and
+ * transaction boundaries. This is not an account merge or ownership check.
  */
 export async function retargetRows<T>(
   rows: readonly T[],
   apply: (row: T) => Promise<"deleted" | "patched" | "skipped">,
 ): Promise<{ deleted: number; patched: number; skipped: number }> {
-  const outcomes = await Promise.all(rows.map(async (row) => apply(row)));
-  return outcomes.reduce(
-    (accumulator, outcome) => {
-      return { ...accumulator, [outcome]: accumulator[outcome] + 1 };
+  if (rows.length > 1000) {
+    throw new RangeError("retargetRows accepts at most 1000 rows per page");
+  }
+  return rows.reduce<
+    Promise<{ deleted: number; patched: number; skipped: number }>
+  >(
+    async (previous, row) => {
+      const counts = await previous;
+      const outcome = await apply(row);
+      return { ...counts, [outcome]: counts[outcome] + 1 };
     },
-    { deleted: 0, patched: 0, skipped: 0 },
+    Promise.resolve({ deleted: 0, patched: 0, skipped: 0 }),
   );
 }

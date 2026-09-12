@@ -55,8 +55,10 @@ function localHttpOrigin(trimmed: string): string | undefined {
       url.username !== "" ||
       url.password !== "" ||
       (url.hostname !== "localhost" && url.hostname !== "127.0.0.1") ||
+      url.pathname !== "/" ||
       url.search !== "" ||
-      url.hash !== ""
+      url.hash !== "" ||
+      (trimmed !== url.origin && trimmed !== `${url.origin}/`)
     ) {
       return undefined;
     }
@@ -76,10 +78,13 @@ export function parseTrustedOrigin(
 ): string | undefined {
   const trimmed = origin.trim();
   if (trimmed === "") return undefined;
-  if (hasControlCharacter(trimmed)) return undefined;
+  if (hasControlCharacter(origin)) return undefined;
   if (
     options.previewPattern !== undefined &&
-    trimmed === options.previewPattern
+    trimmed === options.previewPattern &&
+    /^https:\/\/[a-z0-9]+(?:-[a-z0-9]+)*-\*-[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*){2,}$/u.test(
+      trimmed,
+    )
   ) {
     return trimmed;
   }
@@ -129,7 +134,12 @@ export function trustedOriginsFromCsv(
 export function cookieSettingsForSite(
   siteUrl: string,
 ): CookieSettings | undefined {
-  if (!siteUrl.startsWith("https://")) return undefined;
+  if (
+    !siteUrl.startsWith("https://") ||
+    parseTrustedOrigin(siteUrl) === undefined
+  ) {
+    return undefined;
+  }
   return {
     advanced: {
       defaultCookieAttributes: {

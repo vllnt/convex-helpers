@@ -43,6 +43,23 @@ describe("parseTrustedOrigin", () => {
     );
   });
 
+  it.each([
+    "http://localhost/path",
+    "http://127.0.0.1/a/..",
+    "http://localhost\\evil",
+    "https://ok.example\n",
+    "javascript:alert(1)",
+    "https://user:pass@example.com",
+    "https://*.example.com",
+    "https://app-*-org.example.com/path",
+    "https://app-*-org.example.com?x=1",
+    "https://app-*-org.example.com#x",
+  ])("rejects unsafe origin even as a preview pattern: %s", (origin) => {
+    expect(
+      parseTrustedOrigin(origin, { previewPattern: origin }),
+    ).toBeUndefined();
+  });
+
   it("allows an exact preview pattern only", () => {
     expect(parseTrustedOrigin(preview, { previewPattern: preview })).toBe(
       preview,
@@ -80,6 +97,16 @@ describe("trustedOriginsFromList / csv", () => {
 });
 
 describe("cookieSettingsForSite", () => {
+  it.each([
+    "https://",
+    "https://user:pass@example.com",
+    "https://example.com/path",
+    "https://example.com\n",
+    "https://*.example.com",
+  ])("rejects malformed cookie site: %s", (site) => {
+    expect(cookieSettingsForSite(site)).toBeUndefined();
+  });
+
   it("is undefined on http and set on https", () => {
     expect(cookieSettingsForSite("http://localhost:3211")).toBeUndefined();
     expect(

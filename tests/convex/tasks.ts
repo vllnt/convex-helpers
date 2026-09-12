@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, mutation, query } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server.js";
 
 export const list = query({
   args: { status: v.optional(v.union(v.literal("todo"), v.literal("done"))) },
@@ -51,7 +51,7 @@ export const deleteTask = mutation({
 export const countByStatus = action({
   args: { status: v.union(v.literal("todo"), v.literal("done")) },
   handler: async (ctx, args) => {
-    const { api } = await import("./_generated/api");
+    const { api } = await import("./_generated/api.js");
     const tasks = await ctx.runQuery(api.tasks.list, { status: args.status });
     return { status: args.status, count: tasks.length };
   },

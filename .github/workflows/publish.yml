@@ -9,25 +9,13 @@ on:
       - "pnpm-lock.yaml"
       - ".github/workflows/publish.yml"
   workflow_dispatch:
-    inputs:
-      bump:
-        description: "Release strategy"
-        required: true
-        default: current
-        type: choice
-        options:
-          - current
-          - patch
-          - minor
-          - major
 
 concurrency:
   group: publish-${{ github.event_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 jobs:
   quality:
@@ -49,7 +37,7 @@ jobs:
 
       - run: pnpm typecheck:ci
 
-      - run: pnpm test
+      - run: pnpm test:coverage
 
       - run: pnpm build
 
@@ -101,7 +89,7 @@ jobs:
   release:
     name: Publish Release
     needs: quality
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.RELEASE_ENABLED == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -127,17 +115,12 @@ jobs:
       - name: Prepare version
         id: version
         run: |
-          if [ "${{ inputs.bump }}" = "current" ]; then
-            VERSION=$(node -p "require('./package.json').version")
-          else
-            npm version ${{ inputs.bump }} --no-git-tag-version --ignore-scripts
-            VERSION=$(node -p "require('./package.json').version")
-          fi
+          VERSION=$(node -p "require('./package.json').version")
 
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Generate changelog
-        id: changelog
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -z "$LAST_TAG" ]; then
@@ -147,7 +130,6 @@ jobs:
           fi
 
           {
-            echo "body<<CHANGELOG_EOF"
 
             FEATS=$(git log "$RANGE" --pretty=format:"%s" --grep="^feat" 2>/dev/null || true)
             if [ -n "$FEATS" ]; then
@@ -170,29 +152,7 @@ jobs:
               echo ""
             fi
 
-            echo "CHANGELOG_EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Commit and tag
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          if git rev-parse "refs/tags/v$VERSION" >/dev/null 2>&1; then
-            echo "Tag v$VERSION already exists"
-            exit 1
-          fi
-
-          if ! git diff --quiet -- package.json; then
-            git add package.json
-            git commit -m "chore(release): v$VERSION"
-            git push origin main
-          fi
-
-          git tag -a "v$VERSION" -m "v$VERSION"
-          git push origin "v$VERSION"
+          } > "$RUNNER_TEMP/release-notes.md"
 
       - name: Publish to npm
         run: |
@@ -200,10 +160,18 @@ jobs:
           unset NODE_AUTH_TOKEN
           npx -y npm@11 publish --tag latest --provenance --access public --ignore-scripts
 
+      - name: Tag published revision
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git tag "v$VERSION" "$GITHUB_SHA"
+          git push origin "v$VERSION"
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release create "v${{ steps.version.outputs.version }}" \
-            --title "@vllnt/convex-helpers v${{ steps.version.outputs.version }}" \
-            --notes "${{ steps.changelog.outputs.body }}"
+          gh release create "v$VERSION" \
+            --title "@vllnt/convex-helpers v$VERSION" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"

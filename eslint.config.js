@@ -7,7 +7,10 @@ export default [
       "dist/**",
       "coverage/**",
       "scripts/**",
-      "tests/**",
+      "**/_generated/**",
+      // Legacy MCP integration fixtures remain outside lint; identity is checked.
+      "tests/{context-propagation,e2e,hooks,pagination,serialization,server,validators}.test.ts",
+      "tests/convex/tasks.ts",
       "eslint.config.js",
       "vitest.config.mts",
     ],
@@ -22,7 +25,7 @@ export default [
     },
   },
   {
-    files: ["src/**/*.test.ts"],
+    files: ["src/**/*.test.ts", "tests/**/*.test.ts"],
     rules: {
       "unicorn/no-null": "off",
       "@typescript-eslint/no-inferrable-types": "off",
