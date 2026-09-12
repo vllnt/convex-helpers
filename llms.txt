@@ -1,15 +1,24 @@
 # @vllnt/convex-helpers
 
-> Typed host-side helpers for Convex backends — builders, errors, validators, relationships,
-> pagination, HTTP, env, and observability.
+> Typed Convex host-side utilities, trusted-origin and cookie configuration helpers,
+> identity-row glue, and optional MCP tools.
 
 `@vllnt/convex-helpers` is a helpers library (not a sandboxed Convex component) for
 Convex backends. It provides pure functions and host-`ctx` glue utilities that run with the host's
-`ctx` — no own tables, no `app.use()` mounting. The library targets `convex@^1.36.1`. Stateful
+`ctx` — no own tables, no `app.use()` mounting. The library targets `convex@^1.45.0`. Stateful
 concerns (rate limiting, idempotency, flags, etc.) belong in `@convex-dev/*` or `@vllnt/convex-*`
-components. An optional, tree-shakeable `./mcp` entry exposes Convex functions as Model Context
+components. Optional entries: `./better-auth` (trusted origins + HTTPS cookies), `./identity` (`getOrCreateFromAuth` / `retargetRows`), and a tree-shakeable `./mcp` entry exposes Convex functions as Model Context
 Protocol tools (`@vllnt/convex-helpers/mcp`); it needs the optional peer deps
 `@modelcontextprotocol/sdk` and `zod`, so backend-only consumers pull neither.
+
+Identity callbacks require a trusted single issuer and one Convex mutation transaction
+for race-safe bootstrap. Set host-owned `AuthCtx.trustedIssuer` to enforce issuer
+matching before lookup/insert. MCP auth/hooks have a 10-second deadline; failing
+before hooks deny dispatch and raw exceptions are not logged. `retargetRows` processes at most 1000 rows sequentially; it
+is not an authorized account merge. Hosts install/configure Better Auth themselves.
+Origin helpers validate syntax, not deployment ownership; cross-site cookie attributes
+are not CSRF protection. Existing identity integration tests use convex-test mocks,
+not real Better Auth or backend OCC proof. Builders/errors/env/tracing remain planned.
 
 ## Docs
 

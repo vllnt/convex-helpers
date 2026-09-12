@@ -7,7 +7,10 @@ export default [
       "dist/**",
       "coverage/**",
       "scripts/**",
-      "tests/**",
+      "**/_generated/**",
+      // Legacy MCP integration fixtures remain outside lint; identity is checked.
+      "tests/{context-propagation,e2e,hooks,pagination,serialization,server,validators}.test.ts",
+      "tests/convex/tasks.ts",
       "eslint.config.js",
       "vitest.config.mts",
     ],
@@ -15,7 +18,14 @@ export default [
   ...base,
   // Test files: relax rules that conflict with testing null-handling code
   {
-    files: ["src/**/*.test.ts"],
+    files: ["src/identity.ts"],
+    rules: {
+      // Convex `getUserIdentity()` is `null` when signed out.
+      "unicorn/no-null": "off",
+    },
+  },
+  {
+    files: ["src/**/*.test.ts", "tests/**/*.test.ts"],
     rules: {
       "unicorn/no-null": "off",
       "@typescript-eslint/no-inferrable-types": "off",

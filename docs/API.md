@@ -1,6 +1,6 @@
 # API Reference — @vllnt/convex-helpers
 
-**Compatibility:** `convex@^1.36.1`
+**Compatibility:** `convex@^1.45.0`
 
 This library provides pure functions and host-`ctx` glue utilities. It is a type-B helpers library
 — not a sandboxed Convex component — and runs with the host's `ctx`. No `app.use()` mounting
@@ -161,9 +161,82 @@ Cursors are HMAC-signed per server instance and verified in constant time.
 | Missing/malformed `Authorization: Bearer <key>` | `401` `{ error }` |
 | `auth.validate` returns false | `401` `{ error: "Invalid API key." }` |
 | `POST` without `application/json` | `415` JSON-RPC error `-32700` |
-| Convex execution failure | Generic message to the client (internal Convex errors never leak); the `onToolCall`/`onError` hooks see the real error. |
+| Convex execution failure | Generic message by default; hooks see the real error and may explicitly return a public message. No raw error logging. |
+
+Auth and lifecycle callbacks have a 10-second deadline per callback. Thrown or
+stalled `before` hooks fail closed with `Tool call rejected`, without dispatch.
+Thrown/stalled auth callbacks return a generic 401. Success/error hook failures
+cannot undo completed execution and do not change its result. Deadlines stop
+waiting, not execution: callbacks must avoid side effects. Hosts own observability
+and must redact credentials, args and errors before logging. Resource errors are
+masked and not logged. Mutation/action execution is not timed out or cancelled.
 
 Every response carries an `X-Request-Id` header.
+
+
+## `./better-auth` (shipped)
+
+Fail-closed origin parsing and HTTPS cookie attributes for `@convex-dev/better-auth`.
+Does **not** import better-auth — the host still calls `betterAuth({...})`.
+
+| Function | Contract |
+| --- | --- |
+| `parseTrustedOrigin(origin, { previewPattern? }?)` | Canonical HTTPS origin or exact localhost/127.0.0.1 HTTP origin; otherwise undefined. Credentials, paths, query/hash, controls and arbitrary wildcards reject. |
+| `trustedOriginsFromList(siteUrl, extra, options?)` | Parsed extras prefixed by a valid site origin; undefined when no extras survive. Invalid entries are discarded. |
+| `trustedOriginsFromCsv(siteUrl, csv, options?)` | Same contract, comma-separated extras. |
+| `cookieSettingsForSite(siteUrl)` | Valid HTTPS origin yields `advanced.useSecureCookies: true` plus HttpOnly, Secure, SameSite=None default attributes; otherwise undefined. |
+
+An exact configured preview pattern must have the shape
+`https://app-*-org.example.com`: one wildcard inside a prefixed/suffixed first
+label and at least two fixed suffix labels. The host must trust all deployments
+matched by Better Auth's wildcard semantics. These are syntax helpers, not proof
+of ownership or CSRF protection. Returning undefined leaves host/provider defaults
+in effect; it is not a deny-all trusted-origin configuration.
+
+```ts
+import {
+  cookieSettingsForSite,
+  trustedOriginsFromCsv,
+} from "@vllnt/convex-helpers/better-auth";
+```
+
+## `./identity` (shipped)
+
+Host-`ctx` identity-row callbacks, not an authentication provider or account merge.
+Use a trusted single issuer: `subject` is issuer-local. Pass a host-owned
+`trustedIssuer` on `AuthCtx` (e.g. `{ auth: ctx.auth, trustedIssuer: "https://issuer.example" }`)
+to reject missing/mismatched issuer claims before lookup or insert. Omission retains
+the legacy host-configured single-issuer contract; it does not namespace subjects. The host configures Better
+Auth and its anonymous plugin. `isAnonymousIdentity(identity)` returns true only
+for a literal boolean `isAnonymous: true` claim; false does not prove verification.
+
+| Function | Contract |
+| --- | --- |
+| `requireIdentity(ctx)` | Identity or `UNAUTHENTICATED` ConvexError. |
+| `getFromAuth(ctx, lookup)` | Row plus claim-derived `isAnonymous`, or null for missing session/row. |
+| `requireFromAuth(ctx, lookup)` | Same row, or `USER_NOT_INITIALIZED` (also for missing session). |
+| `getOrCreateFromAuth(ctx, { lookup, insert })` | Lookup then insert if absent; both callbacks receive subject. |
+| `retargetRows(rows, apply)` | At most 1000 rows, sequential callbacks returning `deleted`, `patched`, or `skipped`; returns counts. Oversized pages reject before callbacks. |
+
+Race-safe bootstrap requires the same Convex mutation transaction for indexed
+lookup and insert, with every competing creator using that lookup. Remote calls
+and actions do not provide uniqueness. Retargeting requires host authorization of
+both identities, bounded pagination, conflict resolution and continuation. Failures
+propagate without starting later callbacks; rollback depends on the host transaction.
+The host owns observability; helpers do not log identity data or tokens.
+Tests are convex-test mock integration, not real Better Auth or backend OCC proof.
+
+```ts
+import { getOrCreateFromAuth, retargetRows } from "@vllnt/convex-helpers/identity";
+
+const user = await getOrCreateFromAuth(ctx, {
+  lookup: (subject) => ctx.db.query("users").withIndex("by_betterauth_id", q => q.eq("betterAuthId", subject)).unique(),
+  insert: async (subject) => {
+    const id = await ctx.db.insert("users", { betterAuthId: subject });
+    return (await ctx.db.get(id))!;
+  },
+});
+```
 
 ## Planned modules
 
@@ -174,7 +247,7 @@ milestones and exit criteria.
 |--------|--------|-------------|
 | `./builders` | [planned] | `customQuery`/`customMutation`/`customAction`/`customCtx` + composition |
 | `./errors` | [planned] | `AppError(code)` + HTTP-status map + `toResponse()` |
-| `./auth` | [planned] | `requireIdentity(ctx)` / `getCurrentSubject(ctx)` over `ctx.auth` |
+| `./auth` | shipped as `./identity` | see `./identity` |
 | `./env` | [planned] | `defineEnv(zodSchema)` cold-start validation |
 | `./tracing` | [planned] | span emit + `traceparent` propagation |
 | `./testing` | [planned] | `register(t)` + fixture factories + `withIdentity` |

@@ -13,8 +13,8 @@ Auto-generated. Do not edit manually.
 
 # @vllnt/convex-helpers
 
-Typed host-side helpers for Convex backends — builders, errors, validators, relationships,
-pagination, HTTP, env, and observability.
+Typed Convex host-side utilities, trusted-origin and cookie configuration helpers,
+identity-row glue, and optional MCP tools.
 
 ```ts
 import { asyncMap, pruneNull, nullThrows } from "@vllnt/convex-helpers";
@@ -34,10 +34,11 @@ See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 - `asyncMap` — parallel async map that preserves order
 - `pruneNull` — filter null/undefined from arrays
 - `nullThrows` — non-null assertion with typed `NullDocumentError`
+- `./better-auth` — fail-closed trusted origins + HTTPS cookies for better-auth
+- `./identity` — identity-row lookup/bootstrap and bounded row-callback counting
 - `./mcp` — expose Convex functions as MCP tools (`createMCPServer` + `query`/`mutation`/`action`/`resource`), default-deny auth, optional cursor pagination
 - [planned] `./builders` — `customQuery`/`customMutation`/`customAction`/`customCtx`
 - [planned] `./errors` — typed `AppError` + HTTP-status map
-- [planned] `./auth` — provider-agnostic `requireIdentity`/`getCurrentSubject`
 - [planned] `./env` — `defineEnv(zodSchema)` cold-start validation
 - [planned] `./tracing` — span emit + `traceparent` propagation via `@vllnt/logger`
 - [planned] `./testing` — fixture factories + `withIdentity`
@@ -97,6 +98,78 @@ export const mcp = createMCPServer({
 export const { GET, POST } = mcp.handler();
 ```
 
+MCP auth and lifecycle callbacks have a 10-second deadline per callback. A thrown
+or timed-out `before` hook denies dispatch with a generic message. Auth failures
+also deny access generically. Success/error hooks cannot undo completed dispatch.
+Timeouts stop waiting, not the host callback; callbacks must avoid side effects.
+Raw errors are not logged by the library; hosts may observe hook context and must
+redact errors, arguments and credentials before logging. Resource failures are
+masked without raw logging.
+
+### Better-auth origins — `./better-auth`
+
+Fail-closed trusted-origin parsing and HTTPS cookie attributes. Does **not** import
+`better-auth` — the host still calls `betterAuth({...})`.
+
+```ts
+import {
+  cookieSettingsForSite,
+  trustedOriginsFromCsv,
+} from "@vllnt/convex-helpers/better-auth";
+
+const trustedOrigins = trustedOriginsFromCsv(
+  process.env.CONVEX_SITE_URL ?? "http://localhost:3211",
+  process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "",
+);
+```
+
+`parseTrustedOrigin` rejects credentials, paths, query/hash, controls and arbitrary
+wildcards. HTTP is allowed only for exact localhost/127.0.0.1 origins. An explicit
+`previewPattern` permits only HTTPS patterns shaped like
+`https://app-*-org.example.com` (one wildcard inside a prefixed/suffixed first label).
+The host must trust **every** deployment matched by its auth provider's wildcard
+semantics; syntax validation does not establish deployment ownership.
+Invalid extras are discarded; if none survive, the list helpers return `undefined`,
+so the host omits `trustedOrigins` and retains Better Auth defaults. They do not
+validate the host's entire auth configuration. `cookieSettingsForSite(siteUrl)`
+returns secure, HttpOnly, SameSite=None attributes for a valid HTTPS origin only;
+it does not replace CSRF/origin protection and is for hosts requiring cross-site cookies.
+
+### Identity — `./identity`
+
+Map `ctx.auth.getUserIdentity()` to a host row. The host must configure a trusted
+single issuer (subjects are issuer-local). To enforce it locally, pass
+`{ auth: ctx.auth, trustedIssuer: "https://your-trusted-issuer.example" }` as the
+helper context. A mismatched or missing issuer rejects before lookup/insert. The
+issuer must be host configuration, never a request argument. Omitting it preserves
+compatibility and relies on the host's single-issuer auth configuration.
+Provide callbacks bound to the same
+Convex mutation transaction, including the indexed lookup, for race-safe bootstrap.
+Every competing creator must use the same lookup. Actions or remote callbacks are
+not race-safe. `isAnonymous` reflects only a literal `true` JWT claim; missing/false
+claims do not prove a verified or identified account.
+
+`retargetRows(rows, apply)` processes at most 1000 rows sequentially, counts
+`patched`/`deleted`/`skipped`, and propagates failures without starting later rows.
+The host supplies bounded pages, authorization for both identities, conflict rules,
+continuation, transaction/rollback and logging. It is **not** a secure account merge.
+These helpers neither construct `betterAuth` nor install its anonymous plugin.
+
+```ts
+import { getOrCreateFromAuth, retargetRows } from "@vllnt/convex-helpers/identity";
+
+const user = await getOrCreateFromAuth(ctx, {
+  lookup: (subject) =>
+    ctx.db.query("users").withIndex("by_betterauth_id", (q) =>
+      q.eq("betterAuthId", subject),
+    ).unique(),
+  insert: async (subject) => {
+    const id = await ctx.db.insert("users", { betterAuthId: subject });
+    return (await ctx.db.get(id))!;
+  },
+});
+```
+
 Migrating from `@vllnt/convex-mcp`? Change the import to `@vllnt/convex-helpers/mcp` — the API is
 identical. See [docs/API.md](./docs/API.md#mcp-tools-mcp) for the full `./mcp` reference.
 
@@ -112,7 +185,11 @@ pnpm test:coverage   # must reach 100%
 ```
 
 Tests use [vitest](https://vitest.dev) with the node environment. 100% coverage is enforced via
-`vitest.config.mts` thresholds.
+`vitest.config.mts` thresholds. Identity integration tests use **convex-test mocks**;
+they do not prove real Better Auth sessions or anonymous plugin integration.
+The separate `scripts/local-identity-proof.mjs` passed 16 concurrent real local-backend
+bootstrap mutations with an injected synthetic identity (one row); this tests indexed
+OCC, not login. Consuming apps must verify their actual auth integration independently.
 
 ## Contributing
 
@@ -148,6 +225,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fail closed on thrown or stalled MCP authorization hooks; bound auth/lifecycle
+  callbacks to 10 seconds and remove raw exception logging.
+- Add optional host-configured `AuthCtx.trustedIssuer` enforcement before identity
+  row callbacks, preserving the legacy single-issuer contract when omitted.
+- Reject unsafe preview patterns, localhost paths/normalization and control characters;
+  validate cookie origins instead of trusting a prefix.
+- Bound retargeting to 1000 rows with sequential callbacks and failure short-circuiting.
+- Remove release-note shell interpolation; gate stable dispatch to main and explicit
+  `RELEASE_ENABLED=true`, and remove workflow-wide write/OIDC privileges.
+- Patch development Handlebars and Vite/esbuild advisory paths; document the remaining
+  deepmerge-ts tooling advisory in `docs/READINESS.md`.
+
 - Convert MCP `int64` and `bytes` inputs to native Convex values and serialize native Convex
   results with lossless tagged JSON.
 - Enforce resource argument validators before dispatch and reject unsafe mutation/action
@@ -155,11 +244,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Document actual shipped APIs and host-owned identity/merge/CSRF boundaries; identity
+  integration fixtures now receive strict lint checks (legacy MCP fixtures remain excluded).
+
 - Refresh all direct dependencies to their latest compatible releases for canary validation.
 - Require `convex@^1.45.0` and update `convex-test` to `^0.0.56`.
 
 ### Added
 
+- `./better-auth` — fail-closed trusted-origin parser + HTTPS cookie settings for `@convex-dev/better-auth` (does not import better-auth).
+- `./identity` — `getOrCreateFromAuth` / `requireFromAuth` / `retargetRows` host-`ctx` glue for anonymous sessions and anonymous→identified upgrades.
 - `./mcp` entry — expose Convex functions as MCP tools (`createMCPServer` + `query`/`mutation`/`action`/`resource`), default-deny auth, lifecycle hooks, validator→zod conversion, and optional HMAC-signed cursor pagination. Absorbed from `@vllnt/convex-mcp` (see ROADMAP `absorb-convex-mcp`). `@modelcontextprotocol/sdk` and `zod` are optional peer deps — the `./mcp` entry is tree-shakeable, so backend-only consumers pull neither. 100% test coverage retained (161 tests).
 
 ## [0.1.0] - 2026-06-13
@@ -180,7 +274,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # API Reference — @vllnt/convex-helpers
 
-**Compatibility:** `convex@^1.36.1`
+**Compatibility:** `convex@^1.45.0`
 
 This library provides pure functions and host-`ctx` glue utilities. It is a type-B helpers library
 — not a sandboxed Convex component — and runs with the host's `ctx`. No `app.use()` mounting
@@ -341,9 +435,82 @@ Cursors are HMAC-signed per server instance and verified in constant time.
 | Missing/malformed `Authorization: Bearer <key>` | `401` `{ error }` |
 | `auth.validate` returns false | `401` `{ error: "Invalid API key." }` |
 | `POST` without `application/json` | `415` JSON-RPC error `-32700` |
-| Convex execution failure | Generic message to the client (internal Convex errors never leak); the `onToolCall`/`onError` hooks see the real error. |
+| Convex execution failure | Generic message by default; hooks see the real error and may explicitly return a public message. No raw error logging. |
+
+Auth and lifecycle callbacks have a 10-second deadline per callback. Thrown or
+stalled `before` hooks fail closed with `Tool call rejected`, without dispatch.
+Thrown/stalled auth callbacks return a generic 401. Success/error hook failures
+cannot undo completed execution and do not change its result. Deadlines stop
+waiting, not execution: callbacks must avoid side effects. Hosts own observability
+and must redact credentials, args and errors before logging. Resource errors are
+masked and not logged. Mutation/action execution is not timed out or cancelled.
 
 Every response carries an `X-Request-Id` header.
+
+
+## `./better-auth` (shipped)
+
+Fail-closed origin parsing and HTTPS cookie attributes for `@convex-dev/better-auth`.
+Does **not** import better-auth — the host still calls `betterAuth({...})`.
+
+| Function | Contract |
+| --- | --- |
+| `parseTrustedOrigin(origin, { previewPattern? }?)` | Canonical HTTPS origin or exact localhost/127.0.0.1 HTTP origin; otherwise undefined. Credentials, paths, query/hash, controls and arbitrary wildcards reject. |
+| `trustedOriginsFromList(siteUrl, extra, options?)` | Parsed extras prefixed by a valid site origin; undefined when no extras survive. Invalid entries are discarded. |
+| `trustedOriginsFromCsv(siteUrl, csv, options?)` | Same contract, comma-separated extras. |
+| `cookieSettingsForSite(siteUrl)` | Valid HTTPS origin yields `advanced.useSecureCookies: true` plus HttpOnly, Secure, SameSite=None default attributes; otherwise undefined. |
+
+An exact configured preview pattern must have the shape
+`https://app-*-org.example.com`: one wildcard inside a prefixed/suffixed first
+label and at least two fixed suffix labels. The host must trust all deployments
+matched by Better Auth's wildcard semantics. These are syntax helpers, not proof
+of ownership or CSRF protection. Returning undefined leaves host/provider defaults
+in effect; it is not a deny-all trusted-origin configuration.
+
+```ts
+import {
+  cookieSettingsForSite,
+  trustedOriginsFromCsv,
+} from "@vllnt/convex-helpers/better-auth";
+```
+
+## `./identity` (shipped)
+
+Host-`ctx` identity-row callbacks, not an authentication provider or account merge.
+Use a trusted single issuer: `subject` is issuer-local. Pass a host-owned
+`trustedIssuer` on `AuthCtx` (e.g. `{ auth: ctx.auth, trustedIssuer: "https://issuer.example" }`)
+to reject missing/mismatched issuer claims before lookup or insert. Omission retains
+the legacy host-configured single-issuer contract; it does not namespace subjects. The host configures Better
+Auth and its anonymous plugin. `isAnonymousIdentity(identity)` returns true only
+for a literal boolean `isAnonymous: true` claim; false does not prove verification.
+
+| Function | Contract |
+| --- | --- |
+| `requireIdentity(ctx)` | Identity or `UNAUTHENTICATED` ConvexError. |
+| `getFromAuth(ctx, lookup)` | Row plus claim-derived `isAnonymous`, or null for missing session/row. |
+| `requireFromAuth(ctx, lookup)` | Same row, or `USER_NOT_INITIALIZED` (also for missing session). |
+| `getOrCreateFromAuth(ctx, { lookup, insert })` | Lookup then insert if absent; both callbacks receive subject. |
+| `retargetRows(rows, apply)` | At most 1000 rows, sequential callbacks returning `deleted`, `patched`, or `skipped`; returns counts. Oversized pages reject before callbacks. |
+
+Race-safe bootstrap requires the same Convex mutation transaction for indexed
+lookup and insert, with every competing creator using that lookup. Remote calls
+and actions do not provide uniqueness. Retargeting requires host authorization of
+both identities, bounded pagination, conflict resolution and continuation. Failures
+propagate without starting later callbacks; rollback depends on the host transaction.
+The host owns observability; helpers do not log identity data or tokens.
+Tests are convex-test mock integration, not real Better Auth or backend OCC proof.
+
+```ts
+import { getOrCreateFromAuth, retargetRows } from "@vllnt/convex-helpers/identity";
+
+const user = await getOrCreateFromAuth(ctx, {
+  lookup: (subject) => ctx.db.query("users").withIndex("by_betterauth_id", q => q.eq("betterAuthId", subject)).unique(),
+  insert: async (subject) => {
+    const id = await ctx.db.insert("users", { betterAuthId: subject });
+    return (await ctx.db.get(id))!;
+  },
+});
+```
 
 ## Planned modules
 
@@ -354,7 +521,7 @@ milestones and exit criteria.
 |--------|--------|-------------|
 | `./builders` | [planned] | `customQuery`/`customMutation`/`customAction`/`customCtx` + composition |
 | `./errors` | [planned] | `AppError(code)` + HTTP-status map + `toResponse()` |
-| `./auth` | [planned] | `requireIdentity(ctx)` / `getCurrentSubject(ctx)` over `ctx.auth` |
+| `./auth` | shipped as `./identity` | see `./identity` |
 | `./env` | [planned] | `defineEnv(zodSchema)` cold-start validation |
 | `./tracing` | [planned] | span emit + `traceparent` propagation |
 | `./testing` | [planned] | `register(t)` + fixture factories + `withIdentity` |
@@ -438,6 +605,294 @@ export function nullThrows<T>(
 
 ---
 
+## src/better-auth.ts
+
+```ts
+/**
+ * Fail-closed origin and cookie helpers for `@convex-dev/better-auth`.
+ * Does not import better-auth — the host still constructs `betterAuth(...)`.
+ */
+
+export type CookieSettings = {
+  advanced: {
+    defaultCookieAttributes: {
+      httpOnly: true;
+      sameSite: "none";
+      secure: true;
+    };
+    useSecureCookies: true;
+  };
+};
+
+function hasControlCharacter(value: string): boolean {
+  // Control-character detection is the point of this helper.
+  // eslint-disable-next-line no-control-regex -- C0 + DEL
+  return /[\u0000-\u001F\u007F]/u.test(value);
+}
+
+function isLocalHttp(origin: string): boolean {
+  return (
+    origin.startsWith("http://localhost") ||
+    origin.startsWith("http://127.0.0.1")
+  );
+}
+
+function httpsOrigin(trimmed: string): string | undefined {
+  try {
+    const url = new URL(trimmed);
+    if (
+      url.protocol !== "https:" ||
+      url.username !== "" ||
+      url.password !== "" ||
+      url.pathname !== "/" ||
+      url.search !== "" ||
+      url.hash !== "" ||
+      (trimmed !== url.origin && trimmed !== `${url.origin}/`)
+    ) {
+      return undefined;
+    }
+    return url.origin;
+  } catch {
+    return undefined;
+  }
+}
+
+function localHttpOrigin(trimmed: string): string | undefined {
+  try {
+    const url = new URL(trimmed);
+    if (
+      url.protocol !== "http:" ||
+      url.username !== "" ||
+      url.password !== "" ||
+      (url.hostname !== "localhost" && url.hostname !== "127.0.0.1") ||
+      url.pathname !== "/" ||
+      url.search !== "" ||
+      url.hash !== "" ||
+      (trimmed !== url.origin && trimmed !== `${url.origin}/`)
+    ) {
+      return undefined;
+    }
+    return url.origin;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Parse one origin. HTTPS, no credentials/path/query/hash, no wildcards
+ * except an exact `previewPattern` (e.g. `https://app-*-org.vercel.app`).
+ */
+export function parseTrustedOrigin(
+  origin: string,
+  options: { previewPattern?: string } = {},
+): string | undefined {
+  const trimmed = origin.trim();
+  if (trimmed === "") return undefined;
+  if (hasControlCharacter(origin)) return undefined;
+  if (
+    options.previewPattern !== undefined &&
+    trimmed === options.previewPattern &&
+    /^https:\/\/[a-z0-9]+(?:-[a-z0-9]+)*-\*-[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*){2,}$/u.test(
+      trimmed,
+    )
+  ) {
+    return trimmed;
+  }
+  if (isLocalHttp(trimmed)) {
+    return localHttpOrigin(trimmed);
+  }
+  if (
+    !trimmed.startsWith("https://") ||
+    trimmed.includes("*") ||
+    trimmed.includes("?")
+  ) {
+    return undefined;
+  }
+  return httpsOrigin(trimmed);
+}
+
+/**
+ * Merge `siteUrl` with extra origins. Returns `undefined` when nothing extra
+ * survived parsing — the host then omits `trustedOrigins`.
+ * `siteUrl` uses the same rules (localhost HTTP allowed).
+ */
+export function trustedOriginsFromList(
+  siteUrl: string,
+  extra: readonly string[],
+  options: { previewPattern?: string } = {},
+): string[] | undefined {
+  const parsed = extra
+    .map((origin) => parseTrustedOrigin(origin, options))
+    .filter((origin): origin is string => origin !== undefined);
+  if (parsed.length === 0) return undefined;
+  const site = parseTrustedOrigin(siteUrl, options);
+  if (site === undefined) {
+    return parsed;
+  }
+  return [site, ...parsed];
+}
+
+export function trustedOriginsFromCsv(
+  siteUrl: string,
+  csv: string,
+  options: { previewPattern?: string } = {},
+): string[] | undefined {
+  return trustedOriginsFromList(siteUrl, csv.split(","), options);
+}
+
+/** Secure cross-site cookies when `siteUrl` is HTTPS; otherwise `undefined`. */
+export function cookieSettingsForSite(
+  siteUrl: string,
+): CookieSettings | undefined {
+  if (
+    !siteUrl.startsWith("https://") ||
+    parseTrustedOrigin(siteUrl) === undefined
+  ) {
+    return undefined;
+  }
+  return {
+    advanced: {
+      defaultCookieAttributes: {
+        httpOnly: true,
+        sameSite: "none",
+        secure: true,
+      },
+      useSecureCookies: true,
+    },
+  };
+}
+```
+
+---
+
+## src/identity.ts
+
+```ts
+/**
+ * Host-ctx identity glue: map `ctx.auth` to a host row, and retarget rows when
+ * an anonymous subject upgrades. Writes the **host's** tables — not a component.
+ */
+
+import { ConvexError } from "convex/values";
+
+export type AuthIdentity = {
+  isAnonymous?: unknown;
+  issuer?: string;
+  subject: string;
+};
+
+export type AuthCtx = {
+  auth: {
+    getUserIdentity: () => Promise<AuthIdentity | null>;
+  };
+  /** Host-configured issuer; never accept this value from request arguments. */
+  trustedIssuer?: string;
+};
+
+export function isAnonymousIdentity(identity: AuthIdentity): boolean {
+  return identity.isAnonymous === true;
+}
+
+function assertTrustedIssuer(ctx: AuthCtx, identity: AuthIdentity): void {
+  if (
+    ctx.trustedIssuer !== undefined &&
+    identity.issuer !== ctx.trustedIssuer
+  ) {
+    throw new ConvexError({
+      code: "UNAUTHENTICATED",
+      message: "Untrusted issuer.",
+    });
+  }
+}
+
+export async function requireIdentity(ctx: AuthCtx): Promise<AuthIdentity> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity === null) {
+    throw new ConvexError({
+      code: "UNAUTHENTICATED",
+      message: "Sign-in required.",
+    });
+  }
+  assertTrustedIssuer(ctx, identity);
+  return identity;
+}
+
+/**
+ * Query-side lookup. Returns null when unauthenticated or the host row is not
+ * there yet (BetterAuth `onCreate` can lag a fresh anonymous session).
+ */
+export async function getFromAuth<T extends object>(
+  ctx: AuthCtx,
+  lookup: (subject: string) => Promise<null | T>,
+): Promise<null | (T & { isAnonymous: boolean })> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity === null) return null;
+  assertTrustedIssuer(ctx, identity);
+  const row = await lookup(identity.subject);
+  if (row === null) return null;
+  return { ...row, isAnonymous: isAnonymousIdentity(identity) };
+}
+
+export async function requireFromAuth<T extends object>(
+  ctx: AuthCtx,
+  lookup: (subject: string) => Promise<null | T>,
+): Promise<T & { isAnonymous: boolean }> {
+  const user = await getFromAuth(ctx, lookup);
+  if (user === null) {
+    throw new ConvexError({
+      code: "USER_NOT_INITIALIZED",
+      message: "User not initialized — the auth session may still be settling.",
+    });
+  }
+  return user;
+}
+
+/**
+ * Mutation-side: look up the host row for the current identity, or insert it.
+ * Atomic when both callbacks use the SAME Convex mutation transaction,
+ * including an indexed lookup; every competing writer must use that lookup.
+ * Actions, remote calls and nontransactional callbacks do not provide uniqueness.
+ */
+export async function getOrCreateFromAuth<T extends object>(
+  ctx: AuthCtx,
+  handlers: {
+    insert: (subject: string) => Promise<T>;
+    lookup: (subject: string) => Promise<null | T>;
+  },
+): Promise<T & { isAnonymous: boolean }> {
+  const identity = await requireIdentity(ctx);
+  const existing = await handlers.lookup(identity.subject);
+  const row = existing ?? (await handlers.insert(identity.subject));
+  return { ...row, isAnonymous: isAnonymousIdentity(identity) };
+}
+
+/**
+ * Process at most 1000 rows sequentially (one callback in flight).
+ * The host owns authorization, page size, continuation, conflict resolution and
+ * transaction boundaries. This is not an account merge or ownership check.
+ */
+export async function retargetRows<T>(
+  rows: readonly T[],
+  apply: (row: T) => Promise<"deleted" | "patched" | "skipped">,
+): Promise<{ deleted: number; patched: number; skipped: number }> {
+  if (rows.length > 1000) {
+    throw new RangeError("retargetRows accepts at most 1000 rows per page");
+  }
+  return rows.reduce<
+    Promise<{ deleted: number; patched: number; skipped: number }>
+  >(
+    async (previous, row) => {
+      const counts = await previous;
+      const outcome = await apply(row);
+      return { ...counts, [outcome]: counts[outcome] + 1 };
+    },
+    Promise.resolve({ deleted: 0, patched: 0, skipped: 0 }),
+  );
+}
+```
+
+---
+
 ## src/mcp/index.ts
 
 ```ts
@@ -464,4 +919,694 @@ export {
   convexArgsToZod,
   UnsupportedValidatorError,
 } from "./validators.js";
+```
+
+---
+
+## src/mcp/types.ts
+
+```ts
+export type ConvexValidator = {
+  element?: ConvexValidator;
+  fields?: Record<string, ConvexValidator>;
+  isOptional: "optional" | "required";
+  key?: ConvexValidator;
+  kind: string;
+  members?: ConvexValidator[];
+  tableName?: string;
+  value?: unknown;
+};
+
+/**
+ * Injectable Convex client interface. Compatible with both ConvexHttpClient
+ * (production) and convex-test's `t` (testing).
+ *
+ * Uses `any` for functionRef because Convex's FunctionReference is a complex
+ * generic that cannot be expressed without importing convex internals.
+ */
+export type ConvexClient = {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  action(functionRef: any, ...arguments_: any[]): Promise<any>;
+  mutation(functionRef: any, ...arguments_: any[]): Promise<any>;
+  query(functionRef: any, ...arguments_: any[]): Promise<any>;
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+};
+
+export type AuthConfig = {
+  convexToken?: (
+    apiKey: string,
+  ) => Promise<string | undefined> | string | undefined;
+  validate: (apiKey: string) => boolean | Promise<boolean>;
+};
+
+import type { PaginationConfig } from "./pagination/types.js";
+import type { ResourceDef } from "./resources/types.js";
+import type { LifecycleHooks, ToolDef } from "./tools/types.js";
+
+export type { PaginationConfig, ResourceDef, ToolDef };
+
+export type ServerConfig = {
+  auth: AuthConfig;
+  client?: ConvexClient;
+  convexUrl?: string;
+  hooks?: LifecycleHooks;
+  name?: string;
+  pagination?: PaginationConfig;
+  resources?: Record<string, ResourceDef>;
+  tools?: Record<string, ToolDef>;
+  version?: string;
+};
+
+export type ConvexMCPServer = {
+  handler: () => {
+    GET: (request: Request) => Promise<Response>;
+    POST: (request: Request) => Promise<Response>;
+  };
+};
+
+export { type ToolPage, type ToolSummary } from "./pagination/types.js";
+export {
+  type CallContext,
+  type FunctionType,
+  type LifecycleHooks,
+  type OnCallResult,
+} from "./tools/types.js";
+```
+
+---
+
+## src/mcp/auth.ts
+
+```ts
+import { policyCallback } from "./callback.js";
+import type { AuthConfig } from "./types.js";
+
+export function extractApiKey(request: Request): string | undefined {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader) return undefined;
+
+  if (authHeader.startsWith("Bearer ")) {
+    return authHeader.slice(7);
+  }
+
+  return undefined;
+}
+
+export async function validateRequest(
+  request: Request,
+  auth: AuthConfig,
+): Promise<
+  | { apiKey: string; convexToken?: string; valid: true }
+  | { response: Response; valid: false }
+> {
+  const apiKey = extractApiKey(request);
+
+  if (!apiKey) {
+    return {
+      response: new Response(
+        JSON.stringify({
+          error:
+            "Missing or malformed API key. Use Authorization: Bearer <key>.",
+        }),
+        { headers: { "Content-Type": "application/json" }, status: 401 },
+      ),
+      valid: false,
+    };
+  }
+
+  try {
+    const isValid = await policyCallback(() => auth.validate(apiKey));
+    if (!isValid) {
+      return {
+        response: new Response(JSON.stringify({ error: "Invalid API key." }), {
+          headers: { "Content-Type": "application/json" },
+          status: 401,
+        }),
+        valid: false,
+      };
+    }
+
+    let convexToken: string | undefined;
+    if (auth.convexToken) {
+      const resolveToken = auth.convexToken;
+      convexToken = await policyCallback(() => resolveToken(apiKey));
+    }
+
+    return { apiKey, convexToken, valid: true };
+  } catch {
+    return {
+      response: new Response(
+        JSON.stringify({ error: "Authentication failed." }),
+        {
+          headers: { "Content-Type": "application/json" },
+          status: 401,
+        },
+      ),
+      valid: false,
+    };
+  }
+}
+```
+
+---
+
+## src/mcp/callback.ts
+
+```ts
+/** Bound host policy callbacks; timeout does not cancel host-owned work. */
+export async function policyCallback<T>(
+  callback: () => Promise<T> | T,
+): Promise<T> {
+  let handle: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(callback),
+      new Promise<never>((_, reject) => {
+        handle = setTimeout(() => {
+          reject(new Error("Policy callback timed out"));
+        }, 10_000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(handle);
+  }
+}
+```
+
+---
+
+## src/mcp/tools/types.ts
+
+```ts
+import type { ConvexValidator } from "../types.js";
+
+export type FunctionType = "action" | "mutation" | "query";
+
+export type HookResult = OnCallResult | undefined;
+export type HookReturn = HookResult | Promise<HookResult> | Promise<void>;
+
+export type ToolDef = {
+  args?: ConvexValidator;
+  description?: string;
+  onError?: (ctx: CallContext & { phase: "error" }) => HookReturn;
+  ref: unknown;
+  tags?: Record<string, string>;
+  timeout?: number;
+  type: FunctionType;
+};
+
+export type CallContext = {
+  apiKey: string | undefined;
+  args: Record<string, unknown>;
+  durationMs?: number;
+  error?: unknown;
+  phase: "before" | "error" | "success";
+  requestId: string;
+  result?: unknown;
+  startedAt: number;
+  toolDef: Omit<ToolDef, "onError" | "ref">;
+  toolName: string;
+};
+
+export type OnCallResult = {
+  /** Set true to abort execution. Only checked during "before" phase. */
+  abort?: boolean;
+  /** Custom error message when aborting (before phase). Default: "Tool call rejected" */
+  errorMessage?: string;
+  /**
+   * Server-resolved key/value pairs merged into the dispatched function's args
+   * before the Convex call. Only honored during the "before" phase.
+   *
+   * On key collision, hook-supplied values take precedence over request args
+   * (server-side wins).
+   *
+   * Convention: keys MUST use the framework-reserved underscore prefix
+   * (e.g., `_mcp_apiKey`, `_request_id`). Request args containing `_`-prefixed
+   * keys are rejected before the hook runs, so this prefix is safe for
+   * server-side context injection (auth, tracing, multi-tenancy, audit, etc.).
+   *
+   * Empty objects and undefined are no-ops (no allocation, no merge).
+   *
+   * @example
+   * ```ts
+   * hooks: {
+   *   onToolCall: async ({ apiKey, phase }) => {
+   *     if (phase !== "before") return;
+   *     const validated = await validateKey(apiKey);
+   *     if (!validated.valid) return { abort: true, errorMessage: "Invalid key" };
+   *     return {
+   *       extendArgs: {
+   *         _mcp_apiKey: apiKey,
+   *         _mcp_scopes: validated.scopes,
+   *       },
+   *     };
+   *   },
+   * }
+   * ```
+   */
+  extendArgs?: Record<string, unknown>;
+  /** Custom error message on failure (error phase). Default: "Function execution failed" */
+  message?: string;
+};
+
+export type LifecycleHooks = {
+  onToolCall?: (ctx: CallContext) => HookReturn;
+};
+```
+
+---
+
+## src/mcp/tools/helpers.ts
+
+```ts
+import type { ConvexValidator } from "../types.js";
+
+import type { CallContext, HookReturn, ToolDef } from "./types.js";
+
+type ToolOptions = {
+  args?: ConvexValidator;
+  description?: string;
+  onError?: (ctx: CallContext & { phase: "error" }) => HookReturn;
+  tags?: Record<string, string>;
+  timeout?: number;
+};
+
+export function query(ref: unknown, options: ToolOptions = {}): ToolDef {
+  return {
+    args: options.args,
+    description: options.description,
+    onError: options.onError,
+    ref,
+    tags: options.tags,
+    timeout: options.timeout,
+    type: "query",
+  };
+}
+
+export function mutation(ref: unknown, options: ToolOptions = {}): ToolDef {
+  return {
+    args: options.args,
+    description: options.description,
+    onError: options.onError,
+    ref,
+    tags: options.tags,
+    timeout: options.timeout,
+    type: "mutation",
+  };
+}
+
+export function action(ref: unknown, options: ToolOptions = {}): ToolDef {
+  return {
+    args: options.args,
+    description: options.description,
+    onError: options.onError,
+    ref,
+    tags: options.tags,
+    timeout: options.timeout,
+    type: "action",
+  };
+}
+```
+
+---
+
+## src/mcp/tools/register.ts
+
+```ts
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { z } from "zod";
+
+import { policyCallback } from "../callback.js";
+import { stringifyConvex } from "../serialization.js";
+import type { ConvexClient } from "../types.js";
+import { convexArgsToZod as convexArgumentsToZod } from "../validators.js";
+
+import type {
+  CallContext,
+  LifecycleHooks,
+  OnCallResult,
+  ToolDef,
+} from "./types.js";
+
+type PreparedTool = {
+  description: string;
+  name: string;
+  toolDef: ToolDef;
+  zodShape: Record<string, z.ZodTypeAny>;
+};
+
+/**
+ * Underscore-prefixed arg keys are reserved for framework-injected context.
+ *
+ * - Request args containing `_*` keys are rejected before hook invocation.
+ * - Tool-level Convex validators MAY declare `_*` fields so the action
+ *   handler receives server-injected values; these are stripped from the
+ *   published JSON Schema so MCP clients neither see nor pass them.
+ */
+function isReservedKey(key: string): boolean {
+  return key.startsWith("_");
+}
+
+function stripReservedFromShape(
+  shape: Record<string, z.ZodTypeAny>,
+): Record<string, z.ZodTypeAny> {
+  const filtered: Record<string, z.ZodTypeAny> = {};
+  for (const [key, value] of Object.entries(shape)) {
+    if (!isReservedKey(key)) {
+      filtered[key] = value;
+    }
+  }
+  return filtered;
+}
+
+export function prepareTools(tools: Record<string, ToolDef>): PreparedTool[] {
+  return Object.entries(tools).map(([name, toolDef]) => {
+    if (toolDef.timeout !== undefined && toolDef.type !== "query") {
+      throw new Error(
+        `Tool "${name}" cannot set a timeout on ${toolDef.type}: Convex execution cannot be cancelled safely`,
+      );
+    }
+    const zodSchema = toolDef.args
+      ? convexArgumentsToZod(toolDef.args)
+      : undefined;
+    const fullShape = zodSchema?.shape ?? {};
+    return {
+      description: toolDef.description ?? "",
+      name,
+      toolDef,
+      zodShape: stripReservedFromShape(fullShape),
+    };
+  });
+}
+
+/**
+ * Returns tools whose top-level args contain reserved `_*` keys.
+ *
+ * Available to host diagnostics to detect a tool that
+ * declares `_*` args without an `onToolCall` hook will have those args stripped
+ * from the published schema and never injected, so every dispatched call will
+ * fail Convex's own validator with "missing required arg".
+ */
+export function findToolsWithReservedArgs(
+  tools: Record<string, ToolDef>,
+): Map<string, string[]> {
+  const result = new Map<string, string[]>();
+  for (const [name, toolDef] of Object.entries(tools)) {
+    if (toolDef.args?.kind !== "object" || !toolDef.args.fields) continue;
+    const reserved = Object.keys(toolDef.args.fields).filter(isReservedKey);
+    if (reserved.length > 0) result.set(name, reserved);
+  }
+  return result;
+}
+
+async function invokeHook(
+  hooks: LifecycleHooks | undefined,
+  ctx: CallContext,
+  toolDef: ToolDef,
+): Promise<OnCallResult | undefined> {
+  try {
+    if (ctx.phase === "error" && toolDef.onError) {
+      const onError = toolDef.onError;
+      const result = await policyCallback(
+        async () =>
+          (await onError(ctx as CallContext & { phase: "error" })) ?? undefined,
+      );
+      return result ?? undefined;
+    }
+    if (hooks?.onToolCall) {
+      const onToolCall = hooks.onToolCall;
+      const result = await policyCallback(
+        async () => (await onToolCall(ctx)) ?? undefined,
+      );
+      return result ?? undefined;
+    }
+    return;
+  } catch {
+    // Authorization hooks fail closed; telemetry hooks cannot undo dispatch.
+    if (ctx.phase === "before") {
+      return { abort: true, errorMessage: "Tool call rejected" };
+    }
+    return;
+  }
+}
+
+function executeWithTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number | undefined,
+): Promise<T> {
+  if (!timeoutMs) return promise;
+
+  let handle: ReturnType<typeof setTimeout>;
+  return Promise.race([
+    promise.finally(() => {
+      clearTimeout(handle);
+    }),
+    new Promise<never>((_, reject) => {
+      handle = setTimeout(() => {
+        reject(new Error("Tool execution timed out"));
+      }, timeoutMs);
+    }),
+  ]);
+}
+
+export function registerTools(
+  mcpServer: McpServer,
+  client: ConvexClient,
+  tools: PreparedTool[],
+  hooks: LifecycleHooks | undefined,
+  requestId: string,
+  apiKey: string | undefined,
+): void {
+  for (const { description, name, toolDef, zodShape } of tools) {
+    mcpServer.tool(
+      name,
+      description,
+      zodShape,
+      async (arguments_: Record<string, unknown>) => {
+        const startedAt = Date.now();
+        const { onError: _onError, ref: _ref, ...safeDef } = toolDef;
+
+        const reservedKeys = Object.keys(arguments_).filter(isReservedKey);
+        if (reservedKeys.length > 0) {
+          return {
+            content: [
+              {
+                text:
+                  `Reserved arg keys not allowed in request: ${reservedKeys.join(", ")}. ` +
+                  `Keys starting with "_" are reserved for framework-injected context.`,
+                type: "text" as const,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const baseCtx = {
+          apiKey,
+          args: arguments_,
+          requestId,
+          startedAt,
+          toolDef: safeDef,
+          toolName: name,
+        };
+
+        const beforeCtx: CallContext = { ...baseCtx, phase: "before" };
+        const beforeResult = await invokeHook(hooks, beforeCtx, toolDef);
+        if (beforeResult?.abort) {
+          return {
+            content: [
+              {
+                text: beforeResult.errorMessage ?? "Tool call rejected",
+                type: "text" as const,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const dispatchArguments =
+          beforeResult?.extendArgs &&
+          Object.keys(beforeResult.extendArgs).length > 0
+            ? { ...arguments_, ...beforeResult.extendArgs }
+            : arguments_;
+
+        try {
+          const callPromise = (async () => {
+            switch (toolDef.type) {
+              case "query":
+                return await client.query(toolDef.ref, dispatchArguments);
+              case "mutation":
+                return await client.mutation(toolDef.ref, dispatchArguments);
+              case "action":
+                return await client.action(toolDef.ref, dispatchArguments);
+              default:
+                throw new Error(
+                  `Unknown function type: ${String(toolDef.type)}`,
+                );
+            }
+          })();
+
+          const result = await executeWithTimeout(callPromise, toolDef.timeout);
+          const durationMs = Date.now() - startedAt;
+
+          const successCtx: CallContext = {
+            ...baseCtx,
+            durationMs,
+            phase: "success",
+            result,
+          };
+          await invokeHook(hooks, successCtx, toolDef);
+
+          return {
+            content: [
+              {
+                text: stringifyConvex(result),
+                type: "text" as const,
+              },
+            ],
+          };
+        } catch (error) {
+          const durationMs = Date.now() - startedAt;
+          const errorCtx: CallContext = {
+            ...baseCtx,
+            durationMs,
+            error,
+            phase: "error",
+          };
+
+          const errorResult = await invokeHook(hooks, errorCtx, toolDef);
+          const errorMessage =
+            errorResult?.message ?? "Function execution failed";
+
+          return {
+            content: [{ text: errorMessage, type: "text" as const }],
+            isError: true,
+          };
+        }
+      },
+    );
+  }
+}
+```
+
+---
+
+## src/mcp/resources/types.ts
+
+```ts
+import type { ConvexValidator } from "../types.js";
+
+export type ResourceDef = {
+  args?: ConvexValidator;
+  description?: string;
+  ref: unknown;
+};
+```
+
+---
+
+## src/mcp/resources/helpers.ts
+
+```ts
+import type { ConvexValidator } from "../types.js";
+
+import type { ResourceDef } from "./types.js";
+
+type ResourceOptions = {
+  args?: ConvexValidator;
+  description?: string;
+};
+
+export function resource(
+  ref: unknown,
+  options: ResourceOptions = {},
+): ResourceDef {
+  return {
+    args: options.args,
+    description: options.description,
+    ref,
+  };
+}
+```
+
+---
+
+## src/mcp/resources/register.ts
+
+```ts
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+
+import { stringifyConvex } from "../serialization.js";
+import type { ConvexClient } from "../types.js";
+import { convexArgsToZod } from "../validators.js";
+
+import type { ResourceDef } from "./types.js";
+
+type PreparedResource = {
+  argsSchema: ReturnType<typeof convexArgsToZod> | undefined;
+  description: string | undefined;
+  resourceDef: ResourceDef;
+  template: ResourceTemplate;
+  uriPattern: string;
+};
+
+export function prepareResources(
+  resources: Record<string, ResourceDef>,
+): PreparedResource[] {
+  return Object.entries(resources).map(([uriPattern, resourceDef]) => ({
+    argsSchema: resourceDef.args
+      ? convexArgsToZod(resourceDef.args)
+      : undefined,
+    description: resourceDef.description,
+    resourceDef,
+    template: new ResourceTemplate(uriPattern, { list: undefined }),
+    uriPattern,
+  }));
+}
+
+export function registerResources(
+  mcpServer: McpServer,
+  client: ConvexClient,
+  resources: PreparedResource[],
+): void {
+  for (const {
+    argsSchema,
+    description,
+    resourceDef,
+    template,
+    uriPattern,
+  } of resources) {
+    mcpServer.resource(
+      uriPattern,
+      template,
+      {
+        description,
+        mimeType: "application/json",
+      },
+      async (uri, parameters: Record<string, unknown>) => {
+        try {
+          const validatedParameters =
+            argsSchema?.parse(parameters) ?? parameters;
+          const result = await client.query(
+            resourceDef.ref,
+            validatedParameters,
+          );
+          return {
+            contents: [
+              {
+                mimeType: "application/json",
+                text: stringifyConvex(result),
+                uri: uri.href,
+              },
+            ],
+          };
+        } catch {
+          // Do not log raw exceptions: provider errors may contain secrets.
+          throw new Error("Resource read failed");
+        }
+      },
+    );
+  }
+}
 ```

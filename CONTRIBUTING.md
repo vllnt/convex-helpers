@@ -41,8 +41,19 @@ pnpm test:coverage # coverage report (must be 100%)
 
 Maintainers only:
 
-- Preferred: use `.github/workflows/publish.yml` with `workflow_dispatch` for patch/minor/major
-  releases.
+- `.github/workflows/publish.yml` stable `workflow_dispatch` runs only on `main`
+  with repository variable `RELEASE_ENABLED=true`; the default is disabled.
+  It publishes only the current reviewed package version. Version changes must
+  arrive through a signed, reviewed PR; the workflow never bumps or commits to main.
+  Canary publishing separately requires `CANARY_ENABLED=true`.
+- Release jobs require lint, typechecks, build and 100% coverage. Release notes are
+  passed as a file, never interpolated into shell source.
+- Publish runs are queued, not cancelled when another run starts. npm publication
+  precedes tagging and GitHub release creation. If tagging/release creation fails,
+  inspect npm's published artifact and the reviewed SHA, then recover metadata for
+  that exact revision. Do not republish an immutable version, move an existing tag,
+  or blindly rerun publishing. A failed npm publish creates no tag.
+- See [publication blockers](docs/READINESS.md) before enabling any release.
 
 ## Reporting Issues
 

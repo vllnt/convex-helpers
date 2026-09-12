@@ -1,13 +1,18 @@
 {
   "name": "@vllnt/convex-helpers",
   "version": "0.1.0",
-  "description": "Typed host-side helpers for Convex backends — builders, errors, validators, relationships, pagination, HTTP, env, and observability.",
+  "description": "Typed Convex host-side utilities, trusted-origin and cookie configuration helpers, identity-row glue, and optional MCP tools.",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@9.15.4",
   "files": [
     "dist",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "docs",
+    "CHANGELOG.md",
+    "llms.txt",
+    "llms-full.txt"
   ],
   "exports": {
     "./package.json": "./package.json",
@@ -18,6 +23,14 @@
     "./mcp": {
       "types": "./dist/mcp/index.d.ts",
       "default": "./dist/mcp/index.js"
+    },
+    "./better-auth": {
+      "types": "./dist/better-auth.d.ts",
+      "default": "./dist/better-auth.js"
+    },
+    "./identity": {
+      "types": "./dist/identity.d.ts",
+      "default": "./dist/identity.js"
     }
   },
   "types": "./dist/index.d.ts",
@@ -25,13 +38,14 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsc --project ./tsconfig.build.json",
-    "typecheck": "tsc --noEmit && tsc --noEmit --project tsconfig.test.json",
-    "typecheck:ci": "tsc --noEmit --project tsconfig.ci.json && tsc --noEmit --project tsconfig.test.json",
-    "lint": "pnpm check:agents && eslint .",
+    "typecheck": "tsc --noEmit && tsc --noEmit --project tests/tsconfig.json",
+    "typecheck:ci": "tsc --noEmit --project tsconfig.ci.json && tsc --noEmit --project tests/tsconfig.json",
+    "lint": "pnpm check:agents && pnpm check:docs && eslint .",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --typecheck --clearScreen false",
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
     "generate:llms": "node scripts/generate-llms.mjs",
+    "check:docs": "node scripts/check-docs.mjs",
     "preversion": "pnpm install --frozen-lockfile && pnpm build && pnpm test && pnpm typecheck && pnpm generate:llms",
     "check:agents": "node -e \"const f=require('node:fs');if(!f.existsSync('AGENTS.md')||f.existsSync('CLAUDE.md')||f.existsSync('.claude'))process.exit(1)\""
   },
@@ -60,8 +74,15 @@
     "eslint": "^9.39.5",
     "prettier": "^3.9.6",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^7.3.6",
     "vitest": "^4.1.11",
     "zod": "^4.5.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "handlebars@<4.7.9": "4.7.9",
+      "vite>esbuild": "0.28.1"
+    }
   },
   "engines": {
     "node": ">=18"

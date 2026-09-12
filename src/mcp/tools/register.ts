@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { z } from "zod";
 
+import { policyCallback } from "../callback.js";
 import { stringifyConvex } from "../serialization.js";
 import type { ConvexClient } from "../types.js";
 import { convexArgsToZod as convexArgumentsToZod } from "../validators.js";
@@ -66,7 +67,7 @@ export function prepareTools(tools: Record<string, ToolDef>): PreparedTool[] {
 /**
  * Returns tools whose top-level args contain reserved `_*` keys.
  *
- * Used by `createMCPServer` at construction to surface a footgun: a tool that
+ * Available to host diagnostics to detect a tool that
  * declares `_*` args without an `onToolCall` hook will have those args stripped
  * from the published schema and never injected, so every dispatched call will
  * fail Convex's own validator with "missing required arg".
@@ -90,23 +91,26 @@ async function invokeHook(
 ): Promise<OnCallResult | undefined> {
   try {
     if (ctx.phase === "error" && toolDef.onError) {
-      const result = await toolDef.onError(
-        ctx as CallContext & { phase: "error" },
+      const onError = toolDef.onError;
+      const result = await policyCallback(
+        async () =>
+          (await onError(ctx as CallContext & { phase: "error" })) ?? undefined,
       );
       return result ?? undefined;
     }
     if (hooks?.onToolCall) {
-      const result = await hooks.onToolCall(ctx);
+      const onToolCall = hooks.onToolCall;
+      const result = await policyCallback(
+        async () => (await onToolCall(ctx)) ?? undefined,
+      );
       return result ?? undefined;
     }
     return;
-  } catch (hookError) {
-    console.error("[convex-mcp] hook error (swallowed)", {
-      error: hookError,
-      phase: ctx.phase,
-      requestId: ctx.requestId,
-      tool: ctx.toolName,
-    });
+  } catch {
+    // Authorization hooks fail closed; telemetry hooks cannot undo dispatch.
+    if (ctx.phase === "before") {
+      return { abort: true, errorMessage: "Tool call rejected" };
+    }
     return;
   }
 }
@@ -149,11 +153,6 @@ export function registerTools(
 
         const reservedKeys = Object.keys(arguments_).filter(isReservedKey);
         if (reservedKeys.length > 0) {
-          console.warn("[convex-mcp] reserved-key reject", {
-            keys: reservedKeys,
-            requestId,
-            tool: name,
-          });
           return {
             content: [
               {
@@ -243,13 +242,6 @@ export function registerTools(
           const errorResult = await invokeHook(hooks, errorCtx, toolDef);
           const errorMessage =
             errorResult?.message ?? "Function execution failed";
-
-          console.error("[convex-mcp] tool execution failed", {
-            durationMs,
-            error,
-            requestId,
-            tool: name,
-          });
 
           return {
             content: [{ text: errorMessage, type: "text" as const }],

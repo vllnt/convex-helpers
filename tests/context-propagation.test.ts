@@ -527,8 +527,8 @@ describe("findToolsWithReservedArgs", () => {
   });
 });
 
-describe("construction-time warn for unhooked `_*` args", () => {
-  it("warns when tools declare `_*` args but no onToolCall hook is configured", async () => {
+describe("construction-time privacy for unhooked `_*` args", () => {
+  it("does not log tool configuration without an observer", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     try {
       createMCPServer({
@@ -552,11 +552,7 @@ describe("construction-time warn for unhooked `_*` args", () => {
         },
       });
 
-      expect(warnSpy).toHaveBeenCalledTimes(1);
-      const message = warnSpy.mock.calls[0]?.[0];
-      expect(message).toContain("no onToolCall hook is configured");
-      expect(message).toContain("tool1 (_mcp_apiKey)");
-      expect(message).toContain("tool2 (_mcp_tenantId, _mcp_scope)");
+      expect(warnSpy).not.toHaveBeenCalled();
     } finally {
       warnSpy.mockRestore();
     }
@@ -605,7 +601,7 @@ describe("construction-time warn for unhooked `_*` args", () => {
 });
 
 describe("reserved-key reject logging", () => {
-  it("logs a structured warn line when handler-layer reject fires", async () => {
+  it("does not log attacker-controlled keys when handler-layer reject fires", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     try {
       const { registerTools, prepareTools } = await import("../src/mcp/tools/register.js");
@@ -636,16 +632,10 @@ describe("reserved-key reject logging", () => {
 
       const handler = captured.handler;
       if (!handler) throw new Error("registerTools did not register a handler");
-      await handler({ _mcp_apiKey: "spoofed", _mcp_scope: "x" });
-
-      expect(warnSpy).toHaveBeenCalledWith(
-        "[convex-mcp] reserved-key reject",
-        expect.objectContaining({
-          requestId: "rid-42",
-          tool: "list",
-          keys: ["_mcp_apiKey", "_mcp_scope"],
-        }),
-      );
+      const result = await handler({ _mcp_apiKey: "spoofed", _mcp_scope: "x" });
+      expect(result.isError).toBe(true);
+      expect(mockClient.query).not.toHaveBeenCalled();
+      expect(warnSpy).not.toHaveBeenCalled();
     } finally {
       warnSpy.mockRestore();
     }
