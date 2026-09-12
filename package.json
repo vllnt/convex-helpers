@@ -40,11 +40,12 @@
     "build": "tsc --project ./tsconfig.build.json",
     "typecheck": "tsc --noEmit && tsc --noEmit --project tests/tsconfig.json",
     "typecheck:ci": "tsc --noEmit --project tsconfig.ci.json && tsc --noEmit --project tests/tsconfig.json",
-    "lint": "pnpm check:agents && eslint .",
+    "lint": "pnpm check:agents && pnpm check:docs && eslint .",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --typecheck --clearScreen false",
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
     "generate:llms": "node scripts/generate-llms.mjs",
+    "check:docs": "node scripts/check-docs.mjs",
     "preversion": "pnpm install --frozen-lockfile && pnpm build && pnpm test && pnpm typecheck && pnpm generate:llms",
     "check:agents": "node -e \"const f=require('node:fs');if(!f.existsSync('AGENTS.md')||f.existsSync('CLAUDE.md')||f.existsSync('.claude'))process.exit(1)\""
   },

@@ -1,6 +1,6 @@
 # API Reference — @vllnt/convex-helpers
 
-**Compatibility:** `convex@^1.36.1`
+**Compatibility:** `convex@^1.45.0`
 
 This library provides pure functions and host-`ctx` glue utilities. It is a type-B helpers library
 — not a sandboxed Convex component — and runs with the host's `ctx`. No `app.use()` mounting
