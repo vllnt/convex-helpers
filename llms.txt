@@ -20,6 +20,14 @@ Origin helpers validate syntax, not deployment ownership; cross-site cookie attr
 are not CSRF protection. Existing identity integration tests use convex-test mocks,
 not real Better Auth or backend OCC proof. Builders/errors/env/tracing remain planned.
 
+## Release channels
+
+This index describes current main. npm latest `0.1.0` exports root utilities and
+`./mcp`, not `./better-auth` or `./identity`. Those entries require `@canary`
+(`0.1.1-canary.ba6c009` at this audit). Pin and test prereleases before deployment.
+MCP requires optional peers `@modelcontextprotocol/sdk@^1.29.0` and `zod@^4.3.6`;
+the package is ESM-only and requires `convex@^1.45.0`.
+
 ## Docs
 
 - [README](README.md): Project overview, installation, usage examples, and planned surface
