@@ -63,7 +63,7 @@
 **Goal:** Publish `@vllnt/convex-helpers` 0.1.0 with full docs and a real second consumer.
 **Exit criteria:** 0.1.0 on npm via OIDC `publish.yml` (provenance, no `NPM_TOKEN`); README + llms document the host-`ctx`-complement scope and the `@vllnt/logger` boundary; ≥2 real backends consume it end-to-end (Rule of Three).
 
-- [ ] first-release.1 Docs — README + `llms.txt`/`llms-full.txt`: the host-`ctx`-complement scope, the `@vllnt/logger` boundary (logging vs tracing), and the component-deferral table
+- [ ] first-release.1 Docs — README + `llms.txt`: the host-`ctx`-complement scope, the `@vllnt/logger` boundary (logging vs tracing), and the component-deferral table
 - [ ] first-release.2 Wire into ≥2 real backends (a `vllnt` app + an `anthm-fr` game) end-to-end
 - [ ] first-release.3 Publish 0.1.0 via the standard OIDC `publish.yml`
 
