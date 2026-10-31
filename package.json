@@ -4,7 +4,7 @@
   "description": "Typed Convex host-side utilities, trusted-origin and cookie configuration helpers, identity-row glue, and optional MCP tools.",
   "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@10.34.8",
   "files": [
     "dist",
     "src",
@@ -78,6 +78,10 @@
     "zod": "^4.6.7"
   },
   "pnpm": {
+    "minimumReleaseAge": 10080,
+    "minimumReleaseAgeExclude": [
+      "@vllnt/*"
+    ],
     "overrides": {
       "@hono/node-server@<2.1.3": "2.1.3",
       "body-parser@<2.4.0": "2.4.0",
@@ -94,7 +98,10 @@
       "rolldown": "1.2.15",
       "source-map-js@<1.2.2": "1.2.2",
       "vite>esbuild": "0.28.1"
-    }
+    },
+    "ignoredBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "engines": {
     "node": ">=18"

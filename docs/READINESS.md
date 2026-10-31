@@ -20,7 +20,8 @@ Status: **not publication-ready** pending independent review and real integratio
   claims before row callbacks. Legacy omission requires host single-issuer config.
 - README/API/llms describe actual shipped surfaces and conditional bootstrap safety.
 - Release notes are passed via a file, not interpolated shell source. Stable release
-  requires main plus `RELEASE_ENABLED=true`; default workflow permissions are read-only.
+  runs only from a `vX.Y.Z` tag on main that matches `package.json` and `CHANGELOG.md`;
+  default workflow permissions are read-only.
 
 Commands executed from this repository:
 
@@ -76,5 +77,5 @@ deployed the indexed mutation and ran 16 simultaneous HTTP mutations. All return
 the same row ID; a separate query found exactly one row. Exit status 0. No cloud
 account, production deployment or hand-edited generated files. Identity injection
 was synthetic and cannot prove Better Auth login or JWT integration. The retained
-script reproduces this evidence. Stable publishing now uses reviewed current
-versions only, with npm publication before tags and documented metadata recovery.
+script reproduces this evidence. Stable publishing is tag-driven
+and uses reviewed current versions only.
