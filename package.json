@@ -37,9 +37,9 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsc --project ./tsconfig.build.json",
-    "typecheck": "tsc --noEmit && tsc --noEmit --project tests/tsconfig.json",
-    "typecheck:ci": "tsc --noEmit --project tsconfig.ci.json && tsc --noEmit --project tests/tsconfig.json",
-    "lint": "pnpm check:agents && pnpm check:docs && eslint .",
+    "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/typecheck.tsbuildinfo && tsc --noEmit --project tests/tsconfig.json",
+    "typecheck:ci": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/typecheck-ci.tsbuildinfo --project tsconfig.ci.json && tsc --noEmit --project tests/tsconfig.json",
+    "lint": "pnpm check:agents && pnpm check:docs && eslint --cache --cache-location node_modules/.cache/eslint/ .",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --typecheck --clearScreen false",
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
