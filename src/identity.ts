@@ -15,19 +15,31 @@ export type AuthCtx = {
   auth: {
     getUserIdentity: () => Promise<AuthIdentity | null>;
   };
-  /** Host-configured issuer; never accept this value from request arguments. */
-  trustedIssuer?: string;
+  /**
+   * Host-configured, non-empty issuer; never accept this value from request
+   * arguments. Required: helpers fail closed if absent or empty.
+   * With one trusted issuer, `subject` is unique, so host rows may key on it.
+   * Hosts accepting more than one issuer must key on `tokenIdentifier` instead.
+   */
+  trustedIssuer: string;
 };
 
 export function isAnonymousIdentity(identity: AuthIdentity): boolean {
   return identity.isAnonymous === true;
 }
 
+function assertTrustedIssuerConfigured(ctx: AuthCtx): void {
+  // Runtime guard: JS callers and casts can bypass the required type.
+  if (typeof ctx.trustedIssuer !== "string" || ctx.trustedIssuer === "") {
+    throw new ConvexError({
+      code: "UNAUTHENTICATED",
+      message: "Trusted issuer is not configured.",
+    });
+  }
+}
+
 function assertTrustedIssuer(ctx: AuthCtx, identity: AuthIdentity): void {
-  if (
-    ctx.trustedIssuer !== undefined &&
-    identity.issuer !== ctx.trustedIssuer
-  ) {
+  if (identity.issuer !== ctx.trustedIssuer) {
     throw new ConvexError({
       code: "UNAUTHENTICATED",
       message: "Untrusted issuer.",
@@ -36,6 +48,7 @@ function assertTrustedIssuer(ctx: AuthCtx, identity: AuthIdentity): void {
 }
 
 export async function requireIdentity(ctx: AuthCtx): Promise<AuthIdentity> {
+  assertTrustedIssuerConfigured(ctx);
   const identity = await ctx.auth.getUserIdentity();
   if (identity === null) {
     throw new ConvexError({
@@ -55,6 +68,7 @@ export async function getFromAuth<T extends object>(
   ctx: AuthCtx,
   lookup: (subject: string) => Promise<null | T>,
 ): Promise<null | (T & { isAnonymous: boolean })> {
+  assertTrustedIssuerConfigured(ctx);
   const identity = await ctx.auth.getUserIdentity();
   if (identity === null) return null;
   assertTrustedIssuer(ctx, identity);
