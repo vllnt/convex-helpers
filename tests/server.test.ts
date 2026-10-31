@@ -353,6 +353,42 @@ describe("resource read", () => {
     expect(mockClient.query).toHaveBeenLastCalledWith(null, {});
   });
 
+  it("rejects reserved underscore parameters before dispatch", async () => {
+    const mockClient = await getMockClient();
+    const cases = [
+      {
+        resources: { "doc://{id}/{_mcp_role}": resource(null) },
+        uri: "doc://1/admin",
+      },
+      {
+        resources: { "doc://{id}{?_mcp_role}": resource(null) },
+        uri: "doc://1?_mcp_role=admin",
+      },
+      {
+        resources: {
+          "doc://{id}/{_mcp_role}": resource(null, {
+            args: makeValidator("object", {
+              fields: {
+                _mcp_role: makeValidator("string"),
+                id: makeValidator("string"),
+              },
+            }),
+          }),
+        },
+        uri: "doc://1/admin",
+      },
+    ];
+    for (const { resources, uri } of cases) {
+      mockClient.query.mockClear();
+      const handler = createTestServer({ resources }).handler();
+      const response = await handler.POST(mcpRequest("resources/read", { uri }));
+      const data = await parseSSEResponse(response);
+      expect(data.error ?? data.result?.isError).toBeTruthy();
+      expect(JSON.stringify(data)).not.toContain("admin");
+      expect(mockClient.query).not.toHaveBeenCalled();
+    }
+  });
+
   it("returns error when resource read fails", async () => {
     const server = createTestServer();
     const handler = server.handler();

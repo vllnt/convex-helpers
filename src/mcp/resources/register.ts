@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { stringifyConvex } from "../serialization.js";
+import { isReservedKey } from "../tools/register.js";
 import type { ConvexClient } from "../types.js";
 import { convexArgsToZod } from "../validators.js";
 
@@ -50,6 +51,11 @@ export function registerResources(
       },
       async (uri, parameters: Record<string, unknown>) => {
         try {
+          // Same contract as tools: `_*` keys are reserved for server-injected
+          // context and must never come from a caller-controlled URI.
+          if (Object.keys(parameters).some(isReservedKey)) {
+            throw new Error("Reserved resource parameter");
+          }
           const validatedParameters =
             argsSchema?.parse(parameters) ?? parameters;
           const result = await client.query(

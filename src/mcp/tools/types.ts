@@ -16,6 +16,11 @@ export type ToolDef = {
 };
 
 export type CallContext = {
+  /**
+   * Raw bearer credential. Sensitive: use it only to validate the caller, and
+   * never forward it into function args, logs or responses. Inject a derived
+   * principal or scope via `extendArgs` instead.
+   */
   apiKey: string | undefined;
   args: Record<string, unknown>;
   durationMs?: number;
@@ -41,7 +46,7 @@ export type OnCallResult = {
    * (server-side wins).
    *
    * Convention: keys MUST use the framework-reserved underscore prefix
-   * (e.g., `_mcp_apiKey`, `_request_id`). Request args containing `_`-prefixed
+   * (e.g., `_mcp_principal`, `_request_id`). Request args containing `_`-prefixed
    * keys are rejected before the hook runs, so this prefix is safe for
    * server-side context injection (auth, tracing, multi-tenancy, audit, etc.).
    *
@@ -54,9 +59,10 @@ export type OnCallResult = {
    *     if (phase !== "before") return;
    *     const validated = await validateKey(apiKey);
    *     if (!validated.valid) return { abort: true, errorMessage: "Invalid key" };
+   *     // Never forward the raw `apiKey`: args can be logged by Convex.
    *     return {
    *       extendArgs: {
-   *         _mcp_apiKey: apiKey,
+   *         _mcp_principal: validated.principalId,
    *         _mcp_scopes: validated.scopes,
    *       },
    *     };
