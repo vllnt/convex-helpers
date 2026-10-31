@@ -1,7 +1,8 @@
 # Publication remediation evidence
 
-Status: **not publication-ready** pending independent review and real
-integration proof.
+Status: **not publication-ready**: an independent review is done (2026-10-31, no
+critical or high findings) and its fixes are applied, but real Better Auth
+login/JWT integration proof is still missing.
 
 ## Repairs and checks
 
@@ -21,9 +22,8 @@ integration proof.
 - Raw tool/resource errors and attacker-controlled reserved keys are not logged.
   Host hooks own observability/redaction; explicit hook-returned messages are
   public.
-- Optional host-configured `AuthCtx.trustedIssuer` rejects missing/mismatched
-  issuer claims before row callbacks. Legacy omission requires host
-  single-issuer config.
+- `AuthCtx.trustedIssuer` is required; missing/empty configuration and
+  mismatched issuer claims fail closed before row callbacks.
 - README/API/llms describe actual shipped surfaces and conditional bootstrap
   safety.
 - Release notes are passed via a file, not interpolated shell source. Stable
@@ -50,7 +50,24 @@ wrappers. Packed runtime imports of all four entries passed, and packed API
 TypeScript checks passed using
 `tsc --ignoreConfig --noEmit --strict --skipLibCheck --module NodeNext --target ES2022`
 against the installed local tarball. No publish command was executed.
-Independent review is required before pushing the signed remediation commit.
+
+## Independent review (2026-10-31)
+
+A read-only source review found no critical or high issues. Outcome:
+
+| Finding                                                                                                 | Result                                                                                    |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Subject-only lookups share a row across issuers (medium)                                                | Fixed: `trustedIssuer` required, fail closed. Regression tests in `identity.e2e.test.ts`. |
+| Optional `trustedIssuer` accepts any issuer (medium)                                                    | Fixed with the above.                                                                     |
+| Resources skip `onToolCall`/`before` hooks (medium)                                                     | Documented; an `onResourceRead` hook would be a future minor.                             |
+| `timeout: 0` means no timeout (low)                                                                     | Documented, unchanged.                                                                    |
+| Example injects the raw bearer into args (low)                                                          | Fixed: example injects a derived principal; `apiKey` documented as sensitive.             |
+| Resources accept `_`-prefixed params (low)                                                              | Fixed: rejected before dispatch. Regression test in `server.test.ts`.                     |
+| No body, stream or deadline caps (low)                                                                  | Documented as a host/platform duty.                                                       |
+| Preview wildcard depends on Better Auth matcher (plausible)                                             | Checked in Better Auth 1.7.12 source: `*` can span `.`. Documented; pattern shape tested. |
+| SameSite=None, cursor secret, no Origin check, Bearer case, `isAnonymous`, `retargetRows` outcome (low) | Documented; no behavior change.                                                           |
+
+Review limits: source reading only. Real login/JWT behavior was not exercised.
 
 ## Dependency reachability
 
@@ -72,8 +89,9 @@ esbuild 0.27.0 is outside the reported vulnerable range (>=0.27.3 <0.28.1).
 - Real Better Auth session/anonymous plugin integration remains unverified.
   Local OCC proof passed with a synthetic identity, not a real signed-in
   session.
-- No independent current-target security review/verification completed in this
-  slice.
+- Blocks publication: no test signs in through a real Better Auth session
+  (including the anonymous plugin) and sends its JWT to a Convex backend, so the
+  issuer/subject claims the helpers rely on are untested against real tokens.
 - No publishing, merging, tagging, visibility changes or production access
   performed.
 

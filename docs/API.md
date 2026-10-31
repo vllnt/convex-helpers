@@ -117,6 +117,16 @@ export const mcp = createMCPServer({
 export const { GET, POST } = mcp.handler();
 ```
 
+Security boundaries (host-owned): resources do not run `onToolCall`/`before`
+hooks (only tools do), so any valid bearer key reads every registered resource;
+`_`-prefixed resource URI parameters are rejected. `CallContext.apiKey` is a
+sensitive credential and must never be forwarded in args (inject a derived
+principal via `extendArgs`). There are no body-size, stream or deadline caps
+(`timeout` applies to queries only; `0` disables it), so cap them at the
+platform or proxy. The endpoint does no `Origin` check, accepts only the
+case-sensitive `Bearer ` scheme, and signs pagination cursors with a
+per-instance secret. An `onResourceRead` hook is not provided.
+
 `ServerConfig`:
 
 | Field             | Type                          | Description                                                                                                                                                                                 |
@@ -147,9 +157,11 @@ Convex function reference as a typed `ToolDef`.
 
 Wraps a Convex function reference as an MCP resource
 (`{ args?, description? }`). URI parameters are parsed through `args` before
-dispatch. JSON `int64` strings become `bigint`, base64 `bytes` strings become
-`ArrayBuffer`, and native Convex results use Convex's lossless tagged JSON
-encoding.
+dispatch. Parameter names starting with `_` are rejected before dispatch
+(reserved for server-injected context). Resources run no lifecycle hooks, so
+authorize inside the backing function. JSON `int64` strings become `bigint`,
+base64 `bytes` strings become `ArrayBuffer`, and native Convex results use
+Convex's lossless tagged JSON encoding.
 
 ### Pagination
 
@@ -208,9 +220,11 @@ calls `betterAuth({...})`.
 An exact configured preview pattern must have the shape
 `https://app-*-org.example.com`: one wildcard inside a prefixed/suffixed first
 label and at least two fixed suffix labels. The host must trust all deployments
-matched by Better Auth's wildcard semantics. These are syntax helpers, not proof
-of ownership or CSRF protection. Returning undefined leaves host/provider
-defaults in effect; it is not a deny-all trusted-origin configuration.
+matched by Better Auth's wildcard semantics: in Better Auth 1.7.12 a `*` is
+matched without a path separator and can span `.`, so use a fixed suffix only
+you control. These are syntax helpers, not proof of ownership or CSRF
+protection. Returning undefined leaves host/provider defaults in effect; it is
+not a deny-all trusted-origin configuration.
 
 ```ts
 import {
@@ -222,18 +236,19 @@ import {
 ## `./identity` (shipped)
 
 Host-`ctx` identity-row callbacks, not an authentication provider or account
-merge. Use a trusted single issuer: `subject` is issuer-local. Pass a host-owned
-`trustedIssuer` on `AuthCtx` (e.g.
-`{ auth: ctx.auth, trustedIssuer: "https://issuer.example" }`) to reject
-missing/mismatched issuer claims before lookup or insert. Omission retains the
-legacy host-configured single-issuer contract; it does not namespace subjects.
-The host configures Better Auth and its anonymous plugin.
+merge. Use a trusted single issuer: `subject` is issuer-local. Pass a
+host-owned, non-empty `trustedIssuer` on `AuthCtx` (e.g.
+`{ auth: ctx.auth, trustedIssuer: "https://issuer.example" }`); it is required.
+Missing/empty configuration or a mismatched issuer claim fails closed with
+`UNAUTHENTICATED` before lookup or insert. With one trusted issuer `subject` is
+unique; hosts accepting several issuers must key rows on `tokenIdentifier` in
+their own code. The host configures Better Auth and its anonymous plugin.
 `isAnonymousIdentity(identity)` returns true only for a literal boolean
 `isAnonymous: true` claim; false does not prove verification.
 
 | Function                                       | Contract                                                                                                                                       |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `requireIdentity(ctx)`                         | Identity or `UNAUTHENTICATED` ConvexError.                                                                                                     |
+| `requireIdentity(ctx)`                         | Identity or `UNAUTHENTICATED` ConvexError (also when `trustedIssuer` is unset).                                                                |
 | `getFromAuth(ctx, lookup)`                     | Row plus claim-derived `isAnonymous`, or null for missing session/row.                                                                         |
 | `requireFromAuth(ctx, lookup)`                 | Same row, or `USER_NOT_INITIALIZED` (also for missing session).                                                                                |
 | `getOrCreateFromAuth(ctx, { lookup, insert })` | Lookup then insert if absent; both callbacks receive subject.                                                                                  |
@@ -243,10 +258,10 @@ Race-safe bootstrap requires the same Convex mutation transaction for indexed
 lookup and insert, with every competing creator using that lookup. Remote calls
 and actions do not provide uniqueness. Retargeting requires host authorization
 of both identities, bounded pagination, conflict resolution and continuation.
-Failures propagate without starting later callbacks; rollback depends on the
-host transaction. The host owns observability; helpers do not log identity data
-or tokens. Tests are convex-test mock integration, not real Better Auth or
-backend OCC proof.
+`retargetRows` trusts the outcome each callback returns. Failures propagate
+without starting later callbacks; rollback depends on the host transaction. The
+host owns observability; helpers do not log identity data or tokens. Tests are
+convex-test mock integration, not real Better Auth or backend OCC proof.
 
 ```ts
 import {
