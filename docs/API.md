@@ -4,7 +4,7 @@
 
 **Availability:** this reference follows current main. npm latest `0.1.0`
 includes root utilities and `./mcp`; `./better-auth` and `./identity` require
-the canary channel (`0.1.1-canary.ba6c009` at this audit). See the
+the canary channel (the `canary` dist-tag). See the
 [installation/channel guide](../README.md#installation). Planned modules are not
 exports.
 
