@@ -2,11 +2,10 @@
 
 **Compatibility:** `convex@^1.45.0`; ESM-only.
 
-**Availability:** this reference follows current main. npm latest `0.1.0`
-includes root utilities and `./mcp`; `./better-auth` and `./identity` require
-the canary channel (the `canary` dist-tag). See the
-[installation/channel guide](../README.md#installation). Planned modules are not
-exports.
+**Availability:** this reference follows current main. `./better-auth` and
+`./identity` first ship in `0.2.0`; `0.1.0` has only the root utilities and
+`./mcp`. See the [installation guide](../README.md#installation). Planned
+modules are not exports.
 
 This library provides pure functions and host-`ctx` glue utilities. It is a
 type-B helpers library — not a sandboxed Convex component — and runs with the
@@ -136,13 +135,13 @@ export const { GET, POST } = mcp.handler();
 `query(ref, options)` / `mutation(ref, options)` / `action(ref, options)` wrap a
 Convex function reference as a typed `ToolDef`.
 
-| Option        | Type                     | Description                                                                                                                                  |
-| ------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `args`        | `ConvexValidator`        | A `v.object({...})` validator; converted to the tool's JSON-Schema input.                                                                    |
-| `description` | `string`                 | Human/LLM-facing tool description.                                                                                                           |
-| `tags`        | `Record<string, string>` | Arbitrary metadata.                                                                                                                          |
-| `timeout`     | `number`                 | Per-call timeout (ms), supported only for queries. Mutation/action timeouts are rejected because their execution cannot be cancelled safely. |
-| `onError`     | `(ctx) => HookReturn`    | Per-tool error hook.                                                                                                                         |
+| Option        | Type                     | Description                                                                                                                                                                       |
+| ------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `args`        | `ConvexValidator`        | A `v.object({...})` validator; converted to the tool's JSON-Schema input.                                                                                                         |
+| `description` | `string`                 | Human/LLM-facing tool description.                                                                                                                                                |
+| `tags`        | `Record<string, string>` | Arbitrary metadata.                                                                                                                                                               |
+| `timeout`     | `number`                 | Per-call timeout (ms, finite, 0 to 2147483647; 0 disables), supported only for queries. Mutation/action timeouts are rejected because their execution cannot be cancelled safely. |
+| `onError`     | `(ctx) => HookReturn`    | Per-tool error hook.                                                                                                                                                              |
 
 ### resource(ref, options)
 

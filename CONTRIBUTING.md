@@ -25,7 +25,8 @@ pnpm test:coverage # coverage report (must be 100%)
 ## Code Style
 
 - Prettier + ESLint (run `pnpm lint` before submitting)
-- `@vllnt/eslint-config` base — no convex-specific rules (type-B library, not a component)
+- `@vllnt/eslint-config` base — no convex-specific rules (type-B library, not a
+  component)
 - No `any` — use `unknown` + type guards
 - Explicit return types on public APIs
 - TSDoc on every exported function
@@ -35,27 +36,29 @@ pnpm test:coverage # coverage report (must be 100%)
 - Target `main`
 - One logical change per PR
 - Include tests for new behavior or bug fixes
-- Ensure all checks pass: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
+- Ensure all checks pass:
+  `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
 
 ## Releases
 
-Maintainers only:
+Maintainers only. Every publish runs in `.github/workflows/publish.yml` with npm
+trusted publishing and provenance; nothing is published from a local machine.
 
-- `.github/workflows/publish.yml` stable `workflow_dispatch` runs only on `main`
-  with repository variable `RELEASE_ENABLED=true`; the default is disabled.
-  It publishes only the current reviewed package version. Version changes must
-  arrive through a signed, reviewed PR; the workflow never bumps or commits to main.
-  Canary publishing separately requires `CANARY_ENABLED=true`.
-- Release jobs require lint, typechecks, build and 100% coverage. Release notes are
-  passed as a file, never interpolated into shell source.
-- Publish runs are queued, not cancelled when another run starts. npm publication
-  precedes tagging and GitHub release creation. If tagging/release creation fails,
-  inspect npm's published artifact and the reviewed SHA, then recover metadata for
-  that exact revision. Do not republish an immutable version, move an existing tag,
-  or blindly rerun publishing. A failed npm publish creates no tag.
-- See [publication blockers](docs/READINESS.md) before enabling any release.
+- Canary (`@canary`): pushes to `main` publish one when the `CANARY_ENABLED`
+  repository variable is `true`; otherwise run the workflow manually on `main`.
+- Stable (`@latest`): merge a PR that sets `package.json` `version` and adds a
+  matching `## [X.Y.Z]` entry to `CHANGELOG.md`, then push the tag `vX.Y.Z` on
+  that `main` commit. The workflow refuses a tag that is not on `main` or does
+  not match both files.
+- Release jobs require lint, typechecks, build and 100% coverage. Release notes
+  are taken from the matching `CHANGELOG.md` entry and passed as a file, never
+  interpolated into shell.
+- If creating the GitHub release fails after npm publication, re-run the job: it
+  skips an already-published version. Never republish an immutable version or
+  move an existing tag.
+- See [publication notes](docs/READINESS.md).
 
 ## Reporting Issues
 
-Use [GitHub Issues](https://github.com/vllnt/convex-helpers/issues). For security vulnerabilities,
-see [SECURITY.md](./SECURITY.md).
+Use [GitHub Issues](https://github.com/vllnt/convex-helpers/issues). For
+security vulnerabilities, see [SECURITY.md](./SECURITY.md).
