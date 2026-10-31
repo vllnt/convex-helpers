@@ -261,6 +261,24 @@ describe("lifecycle hooks", () => {
     },
   );
 
+  it.each([-1, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 31])(
+    "rejects invalid query timeout %s that would fire immediately",
+    (timeout) => {
+      expect(() =>
+        createMCPServer({
+          auth: { validate: async () => true },
+          convexUrl: MOCK_CONVEX_URL,
+          tools: {
+            bad: query(null, {
+              args: makeValidator("object", { fields: {} }),
+              timeout,
+            }),
+          },
+        }),
+      ).toThrow(/timeout must be a finite number of milliseconds/);
+    },
+  );
+
   it("timeout-enabled tool call succeeds when resolved in time", async () => {
     const server = createMCPServer({
       auth: { validate: async () => true },

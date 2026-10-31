@@ -20,6 +20,9 @@ type PreparedTool = {
   zodShape: Record<string, z.ZodTypeAny>;
 };
 
+/** Largest delay `setTimeout` honors; larger values fire immediately. */
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
 /**
  * Underscore-prefixed arg keys are reserved for framework-injected context.
  *
@@ -49,6 +52,18 @@ export function prepareTools(tools: Record<string, ToolDef>): PreparedTool[] {
     if (toolDef.timeout !== undefined && toolDef.type !== "query") {
       throw new Error(
         `Tool "${name}" cannot set a timeout on ${toolDef.type}: Convex execution cannot be cancelled safely`,
+      );
+    }
+    if (
+      toolDef.timeout !== undefined &&
+      !(
+        Number.isFinite(toolDef.timeout) &&
+        toolDef.timeout >= 0 &&
+        toolDef.timeout <= MAX_TIMEOUT_MS
+      )
+    ) {
+      throw new Error(
+        `Tool "${name}" timeout must be a finite number of milliseconds between 0 and ${String(MAX_TIMEOUT_MS)}`,
       );
     }
     const zodSchema = toolDef.args
