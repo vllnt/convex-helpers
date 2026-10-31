@@ -50,16 +50,11 @@ See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 pnpm add @vllnt/convex-helpers
 ```
 
-This README describes current `main`. npm `latest` is `0.1.0` and includes the
-root utilities and `./mcp`, but **not** `./better-auth` or `./identity`. To use
-those entries, install the prerelease channel (the `canary` dist-tag):
-
-```bash
-pnpm add @vllnt/convex-helpers@canary
-```
-
-Canary tags move; pin the resolved version and test before production use.
-Modules marked **planned** are not exported by either channel.
+This README describes current `main`. `./better-auth` and `./identity` first
+ship in `0.2.0`; `0.1.0` has only the root utilities and `./mcp`. Builds of
+`main` are published to the `canary` dist-tag; canary tags move, so pin the
+resolved version and test before production use. Modules marked **planned** are
+not exported yet.
 
 `convex@^1.45.0` is a peer dependency:
 

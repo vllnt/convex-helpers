@@ -1,6 +1,6 @@
 {
   "name": "@vllnt/convex-helpers",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Typed Convex host-side utilities, trusted-origin and cookie configuration helpers, identity-row glue, and optional MCP tools.",
   "license": "MIT",
   "type": "module",

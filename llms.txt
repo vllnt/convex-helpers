@@ -22,9 +22,9 @@ not real Better Auth or backend OCC proof. Builders/errors/env/tracing remain pl
 
 ## Release channels
 
-This index describes current main. npm latest `0.1.0` exports root utilities and
-`./mcp`, not `./better-auth` or `./identity`. Those entries require `@canary`
-(the `canary` dist-tag). Pin and test prereleases before deployment.
+This index describes current main. `./better-auth` and `./identity` first ship in
+`0.2.0`; `0.1.0` has only the root utilities and `./mcp`. Prereleases are published
+to the `canary` dist-tag; pin and test them before deployment.
 MCP requires optional peers `@modelcontextprotocol/sdk@^1.29.0` and `zod@^4.3.6`;
 the package is ESM-only and requires `convex@^1.45.0`.
 
