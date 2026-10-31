@@ -54,6 +54,12 @@ describe("parseTrustedOrigin", () => {
     "https://app-*-org.example.com/path",
     "https://app-*-org.example.com?x=1",
     "https://app-*-org.example.com#x",
+    "https://app-*-*-org.example.com",
+    "https://*-org.example.com",
+    "https://app-*.example.com",
+    "https://app-*-org.example.com:8443",
+    "https://app-*-org.com",
+    "https://app-*.-org.example.com",
   ])("rejects unsafe origin even as a preview pattern: %s", (origin) => {
     expect(
       parseTrustedOrigin(origin, { previewPattern: origin }),

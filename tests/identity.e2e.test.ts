@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  type AuthCtx,
   getFromAuth,
   getOrCreateFromAuth,
   isAnonymousIdentity,
@@ -14,6 +15,11 @@ import {
 import schema from "./convex/schema.js";
 
 const modules = import.meta.glob("./convex/**/*.ts");
+const ISSUER = "https://issuer.example";
+
+function host(ctx: { auth: AuthCtx["auth"] }): AuthCtx {
+  return { auth: ctx.auth, trustedIssuer: ISSUER };
+}
 
 function setup() {
   return convexTest(schema, modules);
@@ -73,7 +79,7 @@ describe("convex-test identity", () => {
   it("requireIdentity throws when signed out", async () => {
     const t = setup();
     await expect(
-      t.mutation(async (ctx) => requireIdentity(ctx)),
+      t.mutation(async (ctx) => requireIdentity(host(ctx))),
     ).rejects.toBeInstanceOf(ConvexError);
   });
 
@@ -81,7 +87,7 @@ describe("convex-test identity", () => {
     const t = setup();
     expect(
       await t.mutation(async (ctx) =>
-        getFromAuth(ctx, async (subject) =>
+        getFromAuth(host(ctx), async (subject) =>
           ctx.db
             .query("users")
             .withIndex("by_betterauth_id", (q) => q.eq("betterAuthId", subject))
@@ -90,22 +96,30 @@ describe("convex-test identity", () => {
       ),
     ).toBeNull();
     expect(
-      await t.withIdentity({ subject: "s" }).mutation(async (ctx) =>
-        getFromAuth(ctx, async (subject) =>
-          ctx.db
-            .query("users")
-            .withIndex("by_betterauth_id", (q) => q.eq("betterAuthId", subject))
-            .unique(),
+      await t
+        .withIdentity({ issuer: ISSUER, subject: "s" })
+        .mutation(async (ctx) =>
+          getFromAuth(host(ctx), async (subject) =>
+            ctx.db
+              .query("users")
+              .withIndex("by_betterauth_id", (q) =>
+                q.eq("betterAuthId", subject),
+              )
+              .unique(),
+          ),
         ),
-      ),
     ).toBeNull();
   });
 
   it("getOrCreateFromAuth inserts then reuses", async () => {
     const t = setup();
-    const authed = t.withIdentity({ isAnonymous: true, subject: "anon-1" });
+    const authed = t.withIdentity({
+      isAnonymous: true,
+      issuer: ISSUER,
+      subject: "anon-1",
+    });
     const created = await authed.mutation(async (ctx) =>
-      getOrCreateFromAuth(ctx, {
+      getOrCreateFromAuth(host(ctx), {
         insert: async (subject) => {
           const id = await ctx.db.insert("users", { betterAuthId: subject });
           const row = await ctx.db.get(id);
@@ -124,7 +138,7 @@ describe("convex-test identity", () => {
     expect(created.betterAuthId).toBe("anon-1");
     expect(created.isAnonymous).toBe(true);
     const again = await authed.mutation(async (ctx) =>
-      getOrCreateFromAuth(ctx, {
+      getOrCreateFromAuth(host(ctx), {
         insert: async () => {
           throw new Error("should not insert");
         },
@@ -141,8 +155,8 @@ describe("convex-test identity", () => {
   it("requireFromAuth throws USER_NOT_INITIALIZED then returns", async () => {
     const t = setup();
     await expect(
-      t.withIdentity({ subject: "s" }).mutation(async (ctx) =>
-        requireFromAuth(ctx, async (subject) =>
+      t.withIdentity({ issuer: ISSUER, subject: "s" }).mutation(async (ctx) =>
+        requireFromAuth(host(ctx), async (subject) =>
           ctx.db
             .query("users")
             .withIndex("by_betterauth_id", (q) => q.eq("betterAuthId", subject))
@@ -150,17 +164,170 @@ describe("convex-test identity", () => {
         ),
       ),
     ).rejects.toBeInstanceOf(ConvexError);
-    await t.withIdentity({ subject: "s" }).mutation(async (ctx) => {
-      await ctx.db.insert("users", { betterAuthId: "s" });
-    });
-    const user = await t.withIdentity({ subject: "s" }).mutation(async (ctx) =>
-      requireFromAuth(ctx, async (subject) =>
-        ctx.db
-          .query("users")
-          .withIndex("by_betterauth_id", (q) => q.eq("betterAuthId", subject))
-          .unique(),
+    await t
+      .withIdentity({ issuer: ISSUER, subject: "s" })
+      .mutation(async (ctx) => {
+        await ctx.db.insert("users", { betterAuthId: "s" });
+      });
+    const user = await t
+      .withIdentity({ issuer: ISSUER, subject: "s" })
+      .mutation(async (ctx) =>
+        requireFromAuth(host(ctx), async (subject) =>
+          ctx.db
+            .query("users")
+            .withIndex("by_betterauth_id", (q) => q.eq("betterAuthId", subject))
+            .unique(),
+        ),
+      );
+    expect(user.betterAuthId).toBe("s");
+    expect(user.isAnonymous).toBe(false);
+  });
+});
+
+const calls = () => ({
+  insert: vi.fn(async () => ({ id: "row" })),
+  lookup: vi.fn(async () => ({ id: "row" })),
+});
+
+describe("trustedIssuer is mandatory (fail closed)", () => {
+  const signedIn = {
+    auth: {
+      getUserIdentity: async () => ({
+        issuer: "https://a.example",
+        subject: "u1",
+      }),
+    },
+  };
+
+  it.each([
+    ["missing", {}],
+    ["empty", { trustedIssuer: "" }],
+    ["undefined", { trustedIssuer: undefined }],
+    ["non-string", { trustedIssuer: 7 }],
+  ])("rejects every helper when trustedIssuer is %s", async (_label, extra) => {
+    const ctx = { ...signedIn, ...extra } as unknown as AuthCtx;
+    const { insert, lookup } = calls();
+    await Promise.all(
+      [
+        () => requireIdentity(ctx),
+        () => getFromAuth(ctx, lookup),
+        () => requireFromAuth(ctx, lookup),
+        () => getOrCreateFromAuth(ctx, { insert, lookup }),
+      ].map(async (run) =>
+        expect(run()).rejects.toMatchObject({
+          data: {
+            code: "UNAUTHENTICATED",
+            message: "Trusted issuer is not configured.",
+          },
+        }),
       ),
     );
+    expect(lookup).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+  });
+  it("requireIdentity throws when signed out", async () => {
+    const t = setup();
+    await expect(
+      t.mutation(async (ctx) => requireIdentity(host(ctx))),
+    ).rejects.toBeInstanceOf(ConvexError);
+  });
+
+  it("getFromAuth returns null when signed out or missing row", async () => {
+    const t = setup();
+    expect(
+      await t.mutation(async (ctx) =>
+        getFromAuth(host(ctx), async (subject) =>
+          ctx.db
+            .query("users")
+            .withIndex("by_betterauth_id", (q) => q.eq("betterAuthId", subject))
+            .unique(),
+        ),
+      ),
+    ).toBeNull();
+    expect(
+      await t
+        .withIdentity({ issuer: ISSUER, subject: "s" })
+        .mutation(async (ctx) =>
+          getFromAuth(host(ctx), async (subject) =>
+            ctx.db
+              .query("users")
+              .withIndex("by_betterauth_id", (q) =>
+                q.eq("betterAuthId", subject),
+              )
+              .unique(),
+          ),
+        ),
+    ).toBeNull();
+  });
+
+  it("getOrCreateFromAuth inserts then reuses", async () => {
+    const t = setup();
+    const authed = t.withIdentity({
+      isAnonymous: true,
+      issuer: ISSUER,
+      subject: "anon-1",
+    });
+    const created = await authed.mutation(async (ctx) =>
+      getOrCreateFromAuth(host(ctx), {
+        insert: async (subject) => {
+          const id = await ctx.db.insert("users", { betterAuthId: subject });
+          const row = await ctx.db.get(id);
+          if (row === null) {
+            throw new Error("insert failed");
+          }
+          return row;
+        },
+        lookup: async (subject) =>
+          ctx.db
+            .query("users")
+            .withIndex("by_betterauth_id", (q) => q.eq("betterAuthId", subject))
+            .unique(),
+      }),
+    );
+    expect(created.betterAuthId).toBe("anon-1");
+    expect(created.isAnonymous).toBe(true);
+    const again = await authed.mutation(async (ctx) =>
+      getOrCreateFromAuth(host(ctx), {
+        insert: async () => {
+          throw new Error("should not insert");
+        },
+        lookup: async (subject) =>
+          ctx.db
+            .query("users")
+            .withIndex("by_betterauth_id", (q) => q.eq("betterAuthId", subject))
+            .unique(),
+      }),
+    );
+    expect(again.betterAuthId).toBe("anon-1");
+  });
+
+  it("requireFromAuth throws USER_NOT_INITIALIZED then returns", async () => {
+    const t = setup();
+    await expect(
+      t.withIdentity({ issuer: ISSUER, subject: "s" }).mutation(async (ctx) =>
+        requireFromAuth(host(ctx), async (subject) =>
+          ctx.db
+            .query("users")
+            .withIndex("by_betterauth_id", (q) => q.eq("betterAuthId", subject))
+            .unique(),
+        ),
+      ),
+    ).rejects.toBeInstanceOf(ConvexError);
+    await t
+      .withIdentity({ issuer: ISSUER, subject: "s" })
+      .mutation(async (ctx) => {
+        await ctx.db.insert("users", { betterAuthId: "s" });
+      });
+    const user = await t
+      .withIdentity({ issuer: ISSUER, subject: "s" })
+      .mutation(async (ctx) =>
+        requireFromAuth(host(ctx), async (subject) =>
+          ctx.db
+            .query("users")
+            .withIndex("by_betterauth_id", (q) => q.eq("betterAuthId", subject))
+            .unique(),
+        ),
+      );
     expect(user.betterAuthId).toBe("s");
     expect(user.isAnonymous).toBe(false);
   });

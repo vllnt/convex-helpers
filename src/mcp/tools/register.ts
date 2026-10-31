@@ -31,7 +31,7 @@ const MAX_TIMEOUT_MS = 2_147_483_647;
  *   handler receives server-injected values; these are stripped from the
  *   published JSON Schema so MCP clients neither see nor pass them.
  */
-function isReservedKey(key: string): boolean {
+export function isReservedKey(key: string): boolean {
   return key.startsWith("_");
 }
 

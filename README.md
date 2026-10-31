@@ -115,6 +115,26 @@ side effects. Raw errors are not logged by the library; hosts may observe hook
 context and must redact errors, arguments and credentials before logging.
 Resource failures are masked without raw logging.
 
+MCP security boundaries (host-owned):
+
+- **Resources do not run `onToolCall`/`before` hooks.** Only tools do, so
+  hook-based authorization, `abort` and `extendArgs` never apply to resource
+  reads. Any valid bearer key can read every registered resource: register only
+  resources safe for all authenticated callers, or enforce authorization inside
+  the backing Convex function. Resource URI parameters whose name starts with
+  `_` are rejected (reserved for server-injected context, as for tools).
+- **Never forward the raw bearer.** `CallContext.apiKey` is a credential; inject
+  a derived principal or scope via `extendArgs`, because function args can be
+  logged.
+- **No request limits.** The handler sets no body-size, stream or
+  execution-deadline caps for tool/resource calls (`timeout` applies to queries
+  only; `0` means no timeout). Cap these at the platform or reverse proxy.
+- **No `Origin` check; the scheme is case-sensitive.** The endpoint relies on
+  the bearer header alone, and only the exact `Bearer ` prefix is accepted. Do
+  not expose it to browsers with ambient credentials.
+- **Pagination cursors** are signed with a per-instance secret; a cursor from
+  one server instance or restart may be rejected by another.
+
 ### Better-auth origins — `./better-auth`
 
 Fail-closed trusted-origin parsing and HTTPS cookie attributes. Does **not**
@@ -138,12 +158,15 @@ An explicit `previewPattern` permits only HTTPS patterns shaped like
 `https://app-*-org.example.com` (one wildcard inside a prefixed/suffixed first
 label). The host must trust **every** deployment matched by its auth provider's
 wildcard semantics; syntax validation does not establish deployment ownership.
-Invalid extras are discarded; if none survive, the list helpers return
-`undefined`, so the host omits `trustedOrigins` and retains Better Auth
-defaults. They do not validate the host's entire auth configuration.
-`cookieSettingsForSite(siteUrl)` returns secure, HttpOnly, SameSite=None
-attributes for a valid HTTPS origin only; it does not replace CSRF/origin
-protection and is for hosts requiring cross-site cookies.
+In Better Auth 1.7.12 (checked in its published source), a `*` in a trusted
+origin is matched without a path separator, so it **can span `.`** and match
+several labels. Choose a fixed suffix that only you can register under. Invalid
+extras are discarded; if none survive, the list helpers return `undefined`, so
+the host omits `trustedOrigins` and retains Better Auth defaults. They do not
+validate the host's entire auth configuration. `cookieSettingsForSite(siteUrl)`
+returns secure, HttpOnly, SameSite=None attributes for a valid HTTPS origin
+only; it does not replace CSRF/origin protection and is for hosts requiring
+cross-site cookies.
 
 ### Identity — `./identity`
 
@@ -151,13 +174,17 @@ Map `ctx.auth.getUserIdentity()` to a host row. The host must configure a
 trusted single issuer (subjects are issuer-local). To enforce it locally, pass
 `{ auth: ctx.auth, trustedIssuer: "https://your-trusted-issuer.example" }` as
 the helper context. A mismatched or missing issuer rejects before lookup/insert.
-The issuer must be host configuration, never a request argument. Omitting it
-preserves compatibility and relies on the host's single-issuer auth
-configuration. Provide callbacks bound to the same Convex mutation transaction,
-including the indexed lookup, for race-safe bootstrap. Every competing creator
-must use the same lookup. Actions or remote callbacks are not race-safe.
-`isAnonymous` reflects only a literal `true` JWT claim; missing/false claims do
-not prove a verified or identified account.
+The issuer must be host configuration, never a request argument. `trustedIssuer`
+is required: when missing or empty, every helper fails closed with
+`UNAUTHENTICATED`. With a single trusted issuer, `subject` is unique, so host
+rows may key on it. Hosts accepting several issuers must key rows on
+`tokenIdentifier` in their own code. Provide callbacks bound to the same Convex
+mutation transaction, including the indexed lookup, for race-safe bootstrap.
+Every competing creator must use the same lookup. Actions or remote callbacks
+are not race-safe. `retargetRows` trusts each callback's returned outcome and
+counts it as given; verify real changes inside `apply`. `isAnonymous` reflects
+only a literal `true` JWT claim; missing/false claims do not prove a verified or
+identified account.
 
 `retargetRows(rows, apply)` processes at most 1000 rows sequentially, counts
 `patched`/`deleted`/`skipped`, and propagates failures without starting later

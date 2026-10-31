@@ -14,9 +14,13 @@ and this project adheres to
 
 - Fail closed on thrown or stalled MCP authorization hooks; bound auth/lifecycle
   callbacks to 10 seconds and remove raw exception logging.
-- Add optional host-configured `AuthCtx.trustedIssuer` enforcement before
-  identity row callbacks, preserving the legacy single-issuer contract when
-  omitted.
+- `./identity`: `AuthCtx.trustedIssuer` is required (non-empty string). Missing
+  or empty configuration fails closed with `UNAUTHENTICATED`, and a mismatched
+  issuer is rejected before any row callback, so a subject shared by two issuers
+  can no longer map to one host row.
+- `./mcp`: reject `_`-prefixed resource URI parameters (reserved for
+  server-injected context, as for tools) so a resource caller cannot supply
+  hook-style values.
 - Reject unsafe preview patterns, localhost paths/normalization and control
   characters; validate cookie origins instead of trusting a prefix.
 - Bound retargeting to 1000 rows with sequential callbacks and failure
@@ -37,6 +41,12 @@ and this project adheres to
 - Tooling: SHA-pinned CI actions, least-privilege workflow permissions, and
   stable releases published only from a `vX.Y.Z` tag on `main` via npm trusted
   publishing with provenance. The `RELEASE_ENABLED` variable is no longer used.
+- `./mcp`: document `CallContext.apiKey` as a sensitive credential and stop
+  forwarding it in the `extendArgs` example.
+- Document host-owned boundaries: resources run no lifecycle hooks, no
+  body/stream/deadline caps, no `Origin` check, case-sensitive `Bearer` scheme,
+  per-instance cursor secret, `retargetRows` trusting callback outcomes, and
+  that Better Auth 1.7.12 wildcard origins can span `.`.
 - Use pnpm 10 with a 7-day minimum release age for dependencies.
 
 - Document actual shipped APIs and host-owned identity/merge/CSRF boundaries;
