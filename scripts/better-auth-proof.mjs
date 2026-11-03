@@ -29,6 +29,22 @@ const PINS = {
   jose: "6.2.13",
 };
 
+// Local backend release, passed to `convex dev --local-backend-version` so the
+// run does not follow the CLI's moving "latest". Published 2026-10-22.
+const BACKEND_VERSION = "precompiled-2026-10-22-1447815";
+
+// Child processes get an explicit allow-list, never the caller's CONVEX_* target
+// or credential variables (CONVEX_DEPLOYMENT, CONVEX_URL, CONVEX_DEPLOY_KEY, ...).
+const baseEnv = (extra) => ({
+  ...Object.fromEntries(
+    ["PATH", "LANG", "LC_ALL", "TERM", "TMPDIR", "NODE_OPTIONS"]
+      .filter((name) => process.env[name] !== undefined)
+      .map((name) => [name, process.env[name]]),
+  ),
+  CONVEX_AGENT_MODE: "anonymous",
+  ...extra,
+});
+
 // Large installs go to /var/tmp (disk) when available; /tmp may be RAM-backed.
 const base =
   process.env.BETTER_AUTH_PROOF_TMP ??
@@ -404,14 +420,13 @@ try {
     encoding: "utf8",
   });
   console.log(list.stdout);
+  console.log(`Local backend: ${BACKEND_VERSION}`);
 
-  const env = {
-    ...process.env,
+  const env = baseEnv({
     HOME: home,
-    CONVEX_AGENT_MODE: "anonymous",
     SITE_URL: `http://127.0.0.1:${SITE_PORT}`,
     CLOUD_URL: `http://127.0.0.1:${CLOUD_PORT}`,
-  };
+  });
   child = spawn(
     process.execPath,
     [
@@ -424,6 +439,8 @@ try {
       String(CLOUD_PORT),
       "--local-site-port",
       String(SITE_PORT),
+      "--local-backend-version",
+      BACKEND_VERSION,
       "--start",
       `${process.execPath} verify.mjs`,
     ],

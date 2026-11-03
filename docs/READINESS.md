@@ -123,7 +123,17 @@ added to this package), starts an anonymous local Convex backend on ports
 3350/3351 with an isolated `HOME`, generates `BETTER_AUTH_SECRET` randomly and
 passes it over stdin, then deletes the fixture, `HOME` and backend process. No
 cloud account, production deployment or hand-edited generated files. Rerunning
-needs the network for npm and for the Convex CLI's local backend download.
+needs the network for npm and for the local backend download.
+
+Pinned local backend: `precompiled-2026-10-22-1447815` (published 2026-10-22),
+selected with the Convex CLI's `convex dev --local-backend-version` flag; the
+script prints `Local backend: <version>`. The CLI's default is a moving
+"latest", so the pin is what makes reruns reproducible. Child processes receive
+an explicit environment allow-list (`PATH`, locale, `TERM`, `TMPDIR`,
+`NODE_OPTIONS`, plus the script's own `HOME`, ports and
+`CONVEX_AGENT_MODE=anonymous`), so `CONVEX_DEPLOYMENT`, `CONVEX_URL`,
+`CONVEX_DEPLOY_KEY` and other `CONVEX_*` variables from the caller's shell
+cannot redirect it.
 
 Versions used: `convex` 1.48.0, `better-auth` 1.6.33, `@convex-dev/better-auth`
 0.12.6, `jose` 6.2.13 (test token forging only), Node 24.22.1. The fixture

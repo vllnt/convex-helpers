@@ -56,7 +56,13 @@ const result = spawnSync(
   {
     cwd: directory,
     stdio: "inherit",
-    env: { ...process.env, CONVEX_AGENT_MODE: "anonymous" },
+    env: {
+      // Drop the caller's CONVEX_* target and credential variables.
+      ...Object.fromEntries(
+        Object.entries(process.env).filter(([name]) => !name.startsWith("CONVEX_")),
+      ),
+      CONVEX_AGENT_MODE: "anonymous",
+    },
   },
 );
 process.exitCode = result.status ?? 1;
