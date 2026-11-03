@@ -33,13 +33,12 @@ const PINS = {
 // run does not follow the CLI's moving "latest". Published 2026-10-22.
 const BACKEND_VERSION = "precompiled-2026-10-22-1447815";
 
-// Child processes get an explicit allow-list, never the caller's CONVEX_* target
-// or credential variables (CONVEX_DEPLOYMENT, CONVEX_URL, CONVEX_DEPLOY_KEY, ...).
+// Child processes inherit the caller's environment (proxy and CA settings the
+// Convex CLI and npm need) minus its CONVEX_* target and credential variables
+// (CONVEX_DEPLOYMENT, CONVEX_URL, CONVEX_DEPLOY_KEY, ...).
 const baseEnv = (extra) => ({
   ...Object.fromEntries(
-    ["PATH", "LANG", "LC_ALL", "TERM", "TMPDIR", "NODE_OPTIONS"]
-      .filter((name) => process.env[name] !== undefined)
-      .map((name) => [name, process.env[name]]),
+    Object.entries(process.env).filter(([name]) => !name.startsWith("CONVEX_")),
   ),
   CONVEX_AGENT_MODE: "anonymous",
   ...extra,

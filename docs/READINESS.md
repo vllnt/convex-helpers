@@ -128,10 +128,10 @@ needs the network for npm and for the local backend download.
 Pinned local backend: `precompiled-2026-10-22-1447815` (published 2026-10-22),
 selected with the Convex CLI's `convex dev --local-backend-version` flag; the
 script prints `Local backend: <version>`. The CLI's default is a moving
-"latest", so the pin is what makes reruns reproducible. Child processes receive
-an explicit environment allow-list (`PATH`, locale, `TERM`, `TMPDIR`,
-`NODE_OPTIONS`, plus the script's own `HOME`, ports and
-`CONVEX_AGENT_MODE=anonymous`), so `CONVEX_DEPLOYMENT`, `CONVEX_URL`,
+"latest", so the pin is what makes reruns reproducible.
+Child processes inherit the caller's environment (so proxy and custom CA
+settings still apply) minus every `CONVEX_*` variable, plus the script's own
+`HOME`, ports and `CONVEX_AGENT_MODE=anonymous`, so `CONVEX_DEPLOYMENT`, `CONVEX_URL`,
 `CONVEX_DEPLOY_KEY` and other `CONVEX_*` variables from the caller's shell
 cannot redirect it.
 
