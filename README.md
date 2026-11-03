@@ -234,11 +234,15 @@ pnpm test:coverage   # must reach 100%
 
 Tests use [vitest](https://vitest.dev) with the node environment. 100% coverage
 is enforced via `vitest.config.mts` thresholds. Identity integration tests use
-**convex-test mocks**; they do not prove real Better Auth sessions or anonymous
-plugin integration. The separate `scripts/local-identity-proof.mjs` passed 16
-concurrent real local-backend bootstrap mutations with an injected synthetic
-identity (one row); this tests indexed OCC, not login. Consuming apps must
-verify their actual auth integration independently.
+**convex-test mocks**. Two retained local scripts run against a real anonymous
+Convex backend (no cloud account): `scripts/local-identity-proof.mjs` (16
+concurrent bootstrap mutations with a synthetic identity, one row; tests indexed
+OCC, not login) and `scripts/better-auth-proof.mjs` (real Better Auth sign-in,
+anonymous and email/password, then the issued JWTs sent to Convex functions that
+use `./identity` and `./better-auth`; see
+[docs/READINESS.md](./docs/READINESS.md#real-better-auth-loginjwt-proof) for
+versions and assertions). Consuming apps must verify their own auth integration
+independently.
 
 ## Documentation and security
 

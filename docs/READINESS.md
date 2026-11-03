@@ -1,8 +1,9 @@
 # Publication remediation evidence
 
 Status: **not publication-ready**: an independent review is done (2026-10-31, no
-critical or high findings) and its fixes are applied, but real Better Auth
-login/JWT integration proof is still missing.
+critical or high findings) and its fixes are applied, and the real Better Auth
+login/JWT proof now passes locally (2026-11-03, see below). Publication still
+needs the maintainer's release decision.
 
 ## Repairs and checks
 
@@ -86,12 +87,11 @@ esbuild 0.27.0 is outside the reported vulnerable range (>=0.27.3 <0.28.1).
 
 ## Unverified conditions
 
-- Real Better Auth session/anonymous plugin integration remains unverified.
-  Local OCC proof passed with a synthetic identity, not a real signed-in
-  session.
-- Blocks publication: no test signs in through a real Better Auth session
-  (including the anonymous plugin) and sends its JWT to a Convex backend, so the
-  issuer/subject claims the helpers rely on are untested against real tokens.
+- The Better Auth proof covers only the cases listed under its section below.
+  Not exercised: HTTPS cookies (`cookieSettingsForSite`), preview-pattern
+  origins, anonymous-to-registered account linking with `retargetRows`, social
+  or other plugins, and Better Auth 1.7.x (the component's peer range is
+  `<1.7.0`).
 - No publishing, merging, tagging, visibility changes or production access
   performed.
 
@@ -107,3 +107,59 @@ status 0. No cloud account, production deployment or hand-edited generated
 files. Identity injection was synthetic and cannot prove Better Auth login or
 JWT integration. The retained script reproduces this evidence. Stable publishing
 is tag-driven and uses reviewed current versions only.
+
+## Real Better Auth login/JWT proof
+
+Executed on 2026-11-03:
+
+```sh
+node scripts/better-auth-proof.mjs
+```
+
+Result: `RESULT: PASS`, 13 assertions, exit status 0, about one minute. The
+script builds a throwaway fixture under `/var/tmp`, installs its dependencies
+there with `npm install --ignore-scripts --before <now - 7 days>` (nothing is
+added to this package), starts an anonymous local Convex backend on ports
+3350/3351 with an isolated `HOME`, generates `BETTER_AUTH_SECRET` randomly and
+passes it over stdin, then deletes the fixture, `HOME` and backend process. No
+cloud account, production deployment or hand-edited generated files. Rerunning
+needs the network for npm and for the Convex CLI's local backend download.
+
+Versions used: `convex` 1.48.0, `better-auth` 1.6.33, `@convex-dev/better-auth`
+0.12.6, `jose` 6.2.13 (test token forging only), Node 24.22.1. The fixture
+follows the component's documented setup: `app.use(betterAuth)`,
+`getAuthConfigProvider()`,
+`betterAuth({ plugins: [anonymous(), convex({ authConfig })] })` and
+`registerRoutes`. It copies `src/identity.ts` and `src/better-auth.ts` unchanged
+and calls them from Convex functions, with
+`trustedOrigins: trustedOriginsFromCsv(siteUrl, ...)` configured in Better Auth
+and `trustedIssuer` set to the deployment's site URL.
+
+Asserted against real Better Auth sessions and tokens:
+
+- Anonymous plugin sign-in and a separate email/password sign-in each issue a
+  token from `GET /api/auth/convex/token` with `iss` equal to the deployment
+  site URL, `aud` `convex` and `sub` equal to the Better Auth user id. The
+  anonymous token carries `isAnonymous: true`; the email token's is not `true`.
+- Convex's `ctx.auth.getUserIdentity()` reports the same issuer, subject and
+  `isAnonymous` custom claim.
+- `getOrCreateFromAuth` accepts both, inserts one row per subject, is
+  idempotent, and reports `isAnonymous` true and false respectively;
+  `getFromAuth` returns `null` before bootstrap and the flagged row after.
+- Rejected: no token (`UNAUTHENTICATED`), `trustedIssuer` mismatch on a valid
+  token (`UNAUTHENTICATED`, no row written), payload edited with the signature
+  kept, foreign issuer signed with a foreign key, correct issuer signed with a
+  foreign key, and a real Better Auth token after it expires (valid just before,
+  rejected with "expired" later). Convex tolerates a few seconds of clock skew,
+  so the script waits 10 seconds past expiry. Queries can be served from the
+  backend cache, so the expiry check uses a mutation.
+- Better Auth refuses a sign-in from an origin outside `trustedOrigins` (403)
+  and issues no token after sign-out.
+
+The proof can fail: with the issuer check in `src/identity.ts` disabled, the
+mismatch assertion fails and the script exits 1. `convex dev --once --start`
+exits 0 even when the started command fails, so the script requires a result
+marker that is written only after all assertions pass.
+
+Findings: none. The helpers accepted every real token and rejected every invalid
+one; no change to `src/` was needed.
