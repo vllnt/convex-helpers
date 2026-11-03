@@ -57,6 +57,10 @@ and this project adheres to
 
 ### Added
 
+- `scripts/better-auth-proof.mjs`: local, cloud-free proof that real Better Auth
+  sessions (anonymous plugin and email/password) issue JWTs whose issuer,
+  subject and anonymous claims `./identity` accepts on a real Convex backend,
+  and that tampered, foreign-issuer and expired tokens are rejected.
 - `./better-auth` — fail-closed trusted-origin parser + HTTPS cookie settings
   for `@convex-dev/better-auth` (does not import better-auth).
 - `./identity` — `getOrCreateFromAuth` / `requireFromAuth` / `retargetRows`
