@@ -11,8 +11,8 @@
     "!src/**/*.test.ts",
     "docs",
     "CHANGELOG.md",
-    "llms.txt"
-  ],
+    "llms.txt",
+    "!src/**/*.spec.*"],
   "exports": {
     "./package.json": "./package.json",
     ".": {
