@@ -68,6 +68,6 @@ export const handleStripe = createWebhookHandler({
 
 ## `./better-auth` + `./identity` (shipped on this branch)
 
-**Source:** copied 5× across Anthm daily games + songtrivia. Host-`ctx` only — not a component.
+**Source:** copied across several host applications. Host-`ctx` only — not a component.
 Anonymous auth stays `@convex-dev/better-auth`; these helpers are the glue (origins, get-or-create
 host user, retarget on link).

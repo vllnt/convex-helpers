@@ -64,7 +64,7 @@
 **Exit criteria:** 0.1.0 on npm via OIDC `publish.yml` (provenance, no `NPM_TOKEN`); README + llms document the host-`ctx`-complement scope and the `@vllnt/logger` boundary; ≥2 real backends consume it end-to-end (Rule of Three).
 
 - [ ] first-release.1 Docs — README + `llms.txt`: the host-`ctx`-complement scope, the `@vllnt/logger` boundary (logging vs tracing), and the component-deferral table
-- [ ] first-release.2 Wire into ≥2 real backends (a `vllnt` app + an `anthm-fr` game) end-to-end
+- [ ] first-release.2 Wire into ≥2 real backends (two host applications) end-to-end
 - [ ] first-release.3 Publish 0.1.0 via the standard OIDC `publish.yml`
 
 ## absorb-convex-mcp [PLANNED]
@@ -76,7 +76,7 @@
 > sequence. `./mcp` is implemented in-tree at 100% coverage (161 tests) but **unreleased**; the phase
 > stays `[PLANNED]` until consumer migration + deprecation (`.1`, `.6`, `.7`) complete its exit criteria.
 
-- [ ] absorb-convex-mcp.1 Consumer inventory — find every live `@vllnt/convex-mcp` consumer across the orgs (`vllnt`/`bntvllnt`/`anthm-fr`); confirm migration is worth it (or that it's zero-consumer, like the webhook retirement)
+- [ ] absorb-convex-mcp.1 Consumer inventory — find every live `@vllnt/convex-mcp` consumer across host repositories; confirm migration is worth it (or that it's zero-consumer, like the webhook retirement)
 - [x] absorb-convex-mcp.2 Port the MCP library surface into `./mcp` — `createMCPServer` + `query`/`mutation`/`action`/`resource` typed wrappers, default-deny auth, validator→zod converter, `onToolCall` lifecycle hook, generic-error masking; `@modelcontextprotocol/sdk` + `zod` as **optional** peer deps, tree-shakeable (done 2026-06-15 — ported verbatim from `@vllnt/convex-mcp`)
 - [x] absorb-convex-mcp.3 Port pagination — cursor HMAC encode/decode (constant-time verify), two-phase discovery (`tools/list_summary` + `tools/describe`), pageSize validation (done 2026-06-15)
 - [x] absorb-convex-mcp.4 Tests — brought `convex-mcp`'s tests + `convex-test` e2e over; 100% coverage on `./mcp` (161 tests); happy + adversarial (auth-denied, bad/forged cursor, oversized page) (done 2026-06-15)
