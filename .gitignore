@@ -40,3 +40,4 @@ skills/
 
 # AGENTS.md is the only agent instruction surface
 .claude/
+.privacy-denylist.local
