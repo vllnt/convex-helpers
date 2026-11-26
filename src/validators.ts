@@ -3,9 +3,13 @@
  * Runtime checks against Convex validators, and whole-document validators
  * for schema tables.
  *
- * Behaviour matches `convex-helpers/validators` 0.1.124 (Apache-2.0, see
- * NOTICE) for these functions; `src/validators.test.ts` runs both side by
- * side. The `db` table check for `v.id` is not supported.
+ * Adapted, with changes, from `convex-helpers/validators` 0.1.124
+ * (Apache-2.0, see NOTICE): same behaviour for these functions, which
+ * `src/validators.test.ts` checks side by side, plus two fail-closed
+ * differences. Declared object fields must be own properties (upstream also
+ * treats inherited names such as `constructor` as declared), and the runtime
+ * check throws on the `db` option, which checks a `v.id`'s table, instead of
+ * supporting it. The `AddFieldsToValidator` type follows upstream's.
  */
 
 import type {
@@ -137,7 +141,9 @@ function walkValue(
 
 const checkArray: Checker<"array"> = (validator, value, walk) => {
   if (!Array.isArray(value)) return { expected: "array" };
-  return firstFailure(value as unknown[], (element, index) =>
+  // Array.from turns holes into `undefined`, so every slot of a sparse array
+  // goes through the element check.
+  return firstFailure([...(value as unknown[])], (element, index) =>
     walkValue(validator.element, element, {
       ...walk,
       path: `${walk.path ?? ""}[${String(index)}]`,
@@ -164,7 +170,7 @@ function unknownFieldFailure(
   walk: Walk,
 ): Failure | undefined {
   const unknown = Object.entries(record).find(
-    ([key, item]) => fields[key] === undefined && item !== undefined,
+    ([key, item]) => !Object.hasOwn(fields, key) && item !== undefined,
   );
   if (unknown === undefined) return undefined;
   const [key, item] = unknown;
@@ -280,7 +286,15 @@ export function validate<TValidator extends AnyValidator>(
   value: unknown,
   options?: ValidateOptions,
 ): value is TValidator["type"] {
-  return walkValue(validator, value, { ...options });
+  if (options !== undefined && "db" in options) {
+    throw new Error("validate: the db option is not supported");
+  }
+  return walkValue(validator, value, {
+    ...(options?.allowUnknownFields === undefined
+      ? {}
+      : { allowUnknownFields: options.allowUnknownFields }),
+    ...(options?.throw === undefined ? {} : { throw: options.throw }),
+  });
 }
 
 function stripEntries(
@@ -306,7 +320,9 @@ function stripUnknownFields(validator: AnyValidator, value: unknown): unknown {
   }
   if (validator.kind === "object") {
     const fields: Record<string, AnyValidator | undefined> = validator.fields;
-    return stripEntries(value, (key) => fields[key]);
+    return stripEntries(value, (key) =>
+      Object.hasOwn(fields, key) ? fields[key] : undefined,
+    );
   }
   if (validator.kind === "record") {
     const entryValidator: AnyValidator = validator.value;
@@ -416,7 +432,9 @@ export function doc<
   TSchema["tables"][TTableName]["validator"],
   SystemFields<TTableName>
 > {
-  const system = { _creationTime: v.number(), _id: v.id(tableName) };
+  // Same field order as convex-helpers: `_id` first.
+  // eslint-disable-next-line perfectionist/sort-objects -- keeps upstream's field order in the generated validator
+  const system = { _id: v.id(tableName), _creationTime: v.number() };
   const tables = schema.tables as Record<string, { validator: AnyValidator }>;
   return withSystemFields(
     (tables[tableName] as { validator: AnyValidator }).validator,

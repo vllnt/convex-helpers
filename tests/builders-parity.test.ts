@@ -60,7 +60,7 @@ describe("builders parity with convex-helpers 0.1.124 (convex-test)", () => {
         .withIdentity({ subject: "u1" })
         .query(fns.subject, { prefix: "p:" }),
     }));
-    expect(ours).toEqual(theirs);
+    expect(ours).toStrictEqual(theirs);
     expect(ours).toMatchObject({
       result: { anonymous: "p:anonymous", bare: "u2", signedIn: "p:u1" },
     });
@@ -70,8 +70,8 @@ describe("builders parity with convex-helpers 0.1.124 (convex-test)", () => {
     const { ours, theirs } = await bothWays(async (t, fns) =>
       t.mutation(fns.tagged, { tag: "T", title: "hello" }),
     );
-    expect(ours).toEqual(theirs);
-    expect(ours).toEqual({
+    expect(ours).toStrictEqual(theirs);
+    expect(ours).toStrictEqual({
       result: "T|T:extra|hello|label,title",
       tasks: ["after:T|T:extra|hello|label,title:title"],
     });
@@ -81,7 +81,7 @@ describe("builders parity with convex-helpers 0.1.124 (convex-test)", () => {
     const { ours, theirs } = await bothWays(async (t, fns) =>
       outcome(() => t.mutation(fns.tagged, { title: "hello" })),
     );
-    expect(ours).toEqual(theirs);
+    expect(ours).toStrictEqual(theirs);
     expect(ours).toMatchObject({
       result: { error: expect.stringContaining("tag") },
     });
@@ -91,7 +91,7 @@ describe("builders parity with convex-helpers 0.1.124 (convex-test)", () => {
     const { ours, theirs } = await bothWays(async (t, fns) =>
       t.mutation(fns.kind, { name: "n" }),
     );
-    expect(ours).toEqual(theirs);
+    expect(ours).toStrictEqual(theirs);
     expect(ours).toMatchObject({ result: { kind: "artist", name: "n" } });
   });
 
@@ -99,7 +99,7 @@ describe("builders parity with convex-helpers 0.1.124 (convex-test)", () => {
     const { ours, theirs } = await bothWays(async (t, fns) =>
       t.action(fns.keyed, { n: 7 }),
     );
-    expect(ours).toEqual(theirs);
+    expect(ours).toStrictEqual(theirs);
     expect(ours).toMatchObject({ result: "k7" });
   });
 });

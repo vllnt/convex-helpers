@@ -66,8 +66,10 @@ and this project adheres to
   `convex-helpers/server/customFunctions` 0.1.124, held by a convex-test parity
   test against that package.
 - `./validators` — `validate` (`throw`, `allowUnknownFields`), `parse` and
-  `doc`, matching `convex-helpers/validators` 0.1.124 (parity-tested; the `db`
-  id-table option is not supported).
+  `doc`, matching `convex-helpers/validators` 0.1.124 (parity-tested). Two
+  fail-closed differences: object fields are own properties only (inherited
+  names such as `constructor` are unknown fields), and the `db` id-table option
+  is refused.
 - `NOTICE` — attribution for the convex-helpers (Apache-2.0) behaviour and types
   these entries follow.
 - `./better-auth` — fail-closed trusted-origin parser + HTTPS cookie settings

@@ -110,7 +110,7 @@ describe("builders argument merging (parity with convex-helpers 0.1.124)", () =>
         outcome(() => build(impl)),
       ]),
     );
-    expect(results.ours).toEqual(results.theirs);
+    expect(results.ours).toStrictEqual(results.theirs);
   });
 
   it("passes all args to input when the customization takes none", async () => {
@@ -126,8 +126,8 @@ describe("builders argument merging (parity with convex-helpers 0.1.124)", () =>
       ctx,
     })) as unknown as Captured;
     const result = await definition.handler({ base: 1 }, { a: 1 });
-    expect(seen).toEqual([{ a: 1 }]);
-    expect(result).toEqual({
+    expect(seen).toStrictEqual([{ a: 1 }]);
+    expect(result).toStrictEqual({
       args: { a: 1, added: 1 },
       ctx: { base: 1, extra: true },
     });

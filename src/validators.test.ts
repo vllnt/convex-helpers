@@ -103,6 +103,10 @@ const corpus: [string, AnyValidator, unknown][] = [
   ],
   ["record not object", v.record(v.string(), v.number()), null],
   ["unknown kind", futureKind, 1],
+  // eslint-disable-next-line no-sparse-arrays -- a hole must fail like `undefined`
+  ["sparse array", v.array(v.string()), [, "a"]],
+  ["unfilled array", v.array(v.number()), Array.from<unknown>({ length: 2 })],
+  ["holey array", v.array(v.number()), Array.from({ length: 2 })],
   [
     "record nested",
     v.record(v.string(), user),
@@ -117,15 +121,22 @@ const optionSets: ValidateOptions[] = [
   { allowUnknownFields: true, throw: true },
 ];
 
+function describeExpected(expected: unknown): string | undefined {
+  return expected === undefined ? undefined : String(expected);
+}
+
 function run(fn: () => unknown): unknown {
   try {
     return { value: fn() };
   } catch (error) {
+    if (!(error instanceof Error)) return { thrown: String(error) };
+    const fields = error as Partial<ours.ValidationError>;
     return {
-      error:
-        error instanceof Error
-          ? `${error.name}: ${error.message}`
-          : String(error),
+      error: `${error.name}: ${error.message}`,
+      // Upstream passes a literal's raw value; ours stores it as a string.
+      expected: describeExpected(fields.expected),
+      got: fields.got,
+      path: fields.path,
     };
   }
 }
@@ -133,13 +144,13 @@ function run(fn: () => unknown): unknown {
 describe("validators parity with convex-helpers 0.1.124", () => {
   it.each(corpus)("%s", (_name, validator, value) => {
     const compare = (options?: ValidateOptions) => {
-      expect(run(() => ours.validate(validator, value, options))).toEqual(
+      expect(run(() => ours.validate(validator, value, options))).toStrictEqual(
         run(() => theirs.validate(validator, value, options)),
       );
     };
     compare();
     optionSets.forEach(compare);
-    expect(run(() => ours.parse(validator, value))).toEqual(
+    expect(run(() => ours.parse(validator, value))).toStrictEqual(
       run(() => theirs.parse(validator, value)),
     );
   });
@@ -158,7 +169,12 @@ describe("validators parity with convex-helpers 0.1.124", () => {
     "doc adds system fields to the %s table",
     (table) => {
       // eslint-disable-next-line @typescript-eslint/no-deprecated -- the parity reference
-      expect(ours.doc(schema, table)).toEqual(theirs.doc(schema, table));
+      const upstream = theirs.doc(schema, table);
+      expect(ours.doc(schema, table)).toStrictEqual(upstream);
+      // Same field order too, so generated validators serialize identically.
+      expect(JSON.stringify(ours.doc(schema, table))).toBe(
+        JSON.stringify(upstream),
+      );
     },
   );
 
@@ -172,7 +188,7 @@ describe("validators parity with convex-helpers 0.1.124", () => {
 
   it("doc rejects tables that are neither objects nor unions", () => {
     const odd = { tables: { odd: { validator: v.string() } } } as never;
-    expect(run(() => ours.doc(odd, "odd"))).toEqual(
+    expect(run(() => ours.doc(odd, "odd"))).toStrictEqual(
       // eslint-disable-next-line @typescript-eslint/no-deprecated -- the parity reference
       run(() => theirs.doc(odd, "odd")),
     );
@@ -186,7 +202,28 @@ describe("validators parity with convex-helpers 0.1.124", () => {
       ours.parse(v.record(v.string(), user), {
         u: { extra: 1, name: "n", nick: undefined, tags: ["t"] },
       }),
-    ).toEqual({ u: { name: "n", tags: ["t"] } });
+    ).toStrictEqual({ u: { name: "n", tags: ["t"] } });
+  });
+
+  it("treats inherited names as unknown fields, unlike upstream", () => {
+    const named = v.object({ a: v.string() });
+    const withConstructor = { a: "x", constructor: 1 };
+    expect(theirs.validate(named, withConstructor)).toBe(true);
+    expect(ours.validate(named, withConstructor)).toBe(false);
+    const polluted = JSON.parse(
+      '{"a":"x","__proto__":{"polluted":1}}',
+    ) as unknown;
+    const parsed = ours.parse(named, polluted);
+    expect(parsed).toStrictEqual({ a: "x" });
+    expect(Object.hasOwn(parsed, "__proto__")).toBe(false);
+    expect((parsed as { polluted?: unknown }).polluted).toBeUndefined();
+  });
+
+  it("refuses the unsupported db option", () => {
+    const options = { db: {} } as unknown as ours.ValidateOptions;
+    expect(() => ours.validate(v.id("users"), "x", options)).toThrow(
+      "validate: the db option is not supported",
+    );
   });
 
   it("ValidationError carries expected, got and path", () => {
