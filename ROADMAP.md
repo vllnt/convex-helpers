@@ -19,7 +19,7 @@
 
 - [x] foundation.1 Scaffold the type-B package structure to the Universal standard (#1, #2)
 - [x] foundation.2 Reconcile the package name `@vllnt/convex` → `@vllnt/convex-helpers` (README, `package.json`, exports map)
-- [ ] foundation.3 Ship `./builders` — `customQuery`/`customMutation`/`customAction`/`customCtx` + composition (#3)
+- [x] foundation.3 Ship `./builders` — `customQuery`/`customMutation`/`customAction`/`customCtx` + composition (#3)
 - [x] foundation.4 Wire the 100% coverage gate + `ci.yml` (Universal standard; CI runs `pnpm test:coverage`)
 
 ## dx-gap-fillers [PLANNED]

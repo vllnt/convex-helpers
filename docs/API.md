@@ -2,8 +2,8 @@
 
 **Compatibility:** `convex@^1.45.0`; ESM-only.
 
-**Availability:** this reference follows current main. `./better-auth` and
-`./identity` first ship in `0.2.0`; `0.1.0` has only the root utilities and
+**Availability:** this reference follows current main. `./better-auth`,
+`./identity`, `./builders` and `./validators` first ship in `0.2.0`; `0.1.0` has only the root utilities and
 `./mcp`. See the [installation guide](../README.md#installation). Planned
 modules are not exports.
 
@@ -282,6 +282,40 @@ const user = await getOrCreateFromAuth(ctx, {
 });
 ```
 
+## `./builders` (shipped)
+
+Wrap a Convex function builder so every function made with it receives extra
+`ctx` fields and, optionally, consumes extra args. Signatures and runtime
+behaviour match `convex-helpers/server/customFunctions` 0.1.124; a parity test
+runs both on the same convex-test backend.
+
+| Export                                    | Contract                                                                                                                                                                                                                                  |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `customQuery(query, customization)`       | Returns a builder used like `query(...)`. Accepts `query`, `internalQuery` or `queryGeneric`.                                                                                                                                              |
+| `customMutation(mutation, customization)` | Same for mutation builders.                                                                                                                                                                                                               |
+| `customAction(action, customization)`     | Same for action builders.                                                                                                                                                                                                                 |
+| `customCtx(modifyCtx)`                    | Customization with no args: `modifyCtx(ctx, extra)` returns the ctx fields to add. `extra` holds the definition's keys other than `args`, `handler` and `returns`.                                                                        |
+| `Customization`                           | `{ args, input }`. `args` (property validators) are merged into the function's args and taken out of the handler's args; `input(ctx, consumedArgs, extra)` returns `{ ctx, args, onSuccess? }`. `onSuccess` runs after the handler. |
+| `CustomBuilder`, `CustomCtx<Builder>`     | Types of a custom builder and of the ctx its handlers receive.                                                                                                                                                                           |
+
+Merging fails with an error when a consumed arg and a function arg share a name
+but not a validator kind, when the function's args validator is neither an
+object nor a union, or when the customization consumes args but the function
+declares none. Builders add no authorization of their own.
+
+## `./validators` (shipped)
+
+| Export                                | Contract                                                                                                                                                                                       |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `validate(validator, value, options?)` | `true` when `value` matches (type guard). `options.throw` throws `ValidationError` on the first mismatch; `options.allowUnknownFields` accepts undeclared object fields. Undefined fields pass. |
+| `parse(validator, value)`             | Validates with unknown fields allowed, throws `ValidationError` on mismatch, and returns a copy without undeclared fields (through arrays, records and unions).                                |
+| `doc(schema, tableName)`              | The table's validator plus `_id` and `_creationTime`; union tables get them on every member. Throws for other validator kinds.                                                                 |
+| `ValidationError`                     | Has `expected`, `got` and an optional `path`; the message names all three.                                                                                                                      |
+
+Behaviour matches `convex-helpers/validators` 0.1.124 for these exports, held
+by a parity test. The `db` option (checking a `v.id`'s table) is not supported:
+`v.id` checks for a string.
+
 ## Planned modules
 
 The following modules are on the roadmap but not yet shipped. See
@@ -289,14 +323,14 @@ The following modules are on the roadmap but not yet shipped. See
 
 | Module            | Status                  | Description                                                             |
 | ----------------- | ----------------------- | ----------------------------------------------------------------------- |
-| `./builders`      | [planned]               | `customQuery`/`customMutation`/`customAction`/`customCtx` + composition |
+| `./builders`      | shipped (`0.2.0`)       | composition helpers remain planned                                      |
 | `./errors`        | [planned]               | `AppError(code)` + HTTP-status map + `toResponse()`                     |
 | `./auth`          | shipped as `./identity` | see `./identity`                                                        |
 | `./env`           | [planned]               | `defineEnv(zodSchema)` cold-start validation                            |
 | `./tracing`       | [planned]               | span emit + `traceparent` propagation                                   |
 | `./testing`       | [planned]               | `register(t)` + fixture factories + `withIdentity`                      |
 | `./relationships` | [planned]               | `getOneFrom`/`getManyFrom`/`getManyVia` + `asyncMap`                    |
-| `./validators`    | [planned]               | `partial`/`typedV`/`doc`/`literals` + zod bridge                        |
+| `./validators`    | partly shipped (`0.2.0`) | `partial`/`typedV`/`literals` + zod bridge remain planned               |
 | `./pagination`    | [planned]               | `getPage`/`mergedStream`/`filter`                                       |
 | `./rls`           | [planned]               | `RowLevelSecurity` reader/writer wrappers                               |
 | `./triggers`      | [planned]               | atomic in-transaction denormalization / cascade delete                  |

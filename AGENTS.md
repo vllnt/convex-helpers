@@ -26,7 +26,9 @@ A type-B helpers library (not a sandboxed Convex component) following the vllnt 
 src/
 ├── index.ts           # root exports: asyncMap, pruneNull, nullThrows, NullDocumentError
 ├── better-auth.ts     # ./better-auth — trusted origins + cookie settings
+├── builders.ts        # ./builders — customQuery / customMutation / customAction / customCtx
 ├── identity.ts        # ./identity — getOrCreateFromAuth / retargetRows
+├── validators.ts      # ./validators — validate / parse / doc
 └── mcp/               # ./mcp entry — expose Convex functions as MCP tools (absorbed from @vllnt/convex-mcp)
     ├── index.ts       # public API barrel
     ├── server.ts      # createMCPServer + GET/POST Streamable-HTTP handler

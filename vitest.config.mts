@@ -15,7 +15,14 @@ export default defineConfig({
       },
     },
     coverage: {
-      include: ["src/index.ts", "src/better-auth.ts", "src/identity.ts", "src/mcp/**/*.ts"],
+      include: [
+        "src/index.ts",
+        "src/better-auth.ts",
+        "src/builders.ts",
+        "src/identity.ts",
+        "src/validators.ts",
+        "src/mcp/**/*.ts",
+      ],
       exclude: ["src/mcp/index.ts", "src/mcp/types.ts", "src/mcp/**/types.ts"],
       thresholds: {
         statements: 100,

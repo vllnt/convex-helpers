@@ -8,7 +8,7 @@ and this project adheres to
 
 ## [Unreleased]
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-11-26
 
 ### Fixed
 
@@ -61,6 +61,15 @@ and this project adheres to
   sessions (anonymous plugin and email/password) issue JWTs whose issuer,
   subject and anonymous claims `./identity` accepts on a real Convex backend,
   and that tampered, foreign-issuer and expired tokens are rejected.
+- `./builders` — `customQuery` / `customMutation` / `customAction` / `customCtx`
+  with the signatures and runtime behaviour of
+  `convex-helpers/server/customFunctions` 0.1.124, held by a convex-test parity
+  test against that package.
+- `./validators` — `validate` (`throw`, `allowUnknownFields`), `parse` and
+  `doc`, matching `convex-helpers/validators` 0.1.124 (parity-tested; the `db`
+  id-table option is not supported).
+- `NOTICE` — attribution for the convex-helpers (Apache-2.0) behaviour and types
+  these entries follow.
 - `./better-auth` — fail-closed trusted-origin parser + HTTPS cookie settings
   for `@convex-dev/better-auth` (does not import better-auth).
 - `./identity` — `getOrCreateFromAuth` / `requireFromAuth` / `retargetRows`
