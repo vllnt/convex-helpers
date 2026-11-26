@@ -33,15 +33,17 @@ See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 - `./mcp` — expose Convex functions as MCP tools (`createMCPServer` +
   `query`/`mutation`/`action`/`resource`), default-deny auth, optional cursor
   pagination
-- [planned] `./builders` —
-  `customQuery`/`customMutation`/`customAction`/`customCtx`
+- `./builders` — `customQuery`/`customMutation`/`customAction`/`customCtx` (same
+  signatures and behaviour as `convex-helpers/server/customFunctions`)
+- `./validators` — runtime `validate`/`parse` and the `doc(schema, table)`
+  document validator (same behaviour as `convex-helpers/validators`)
 - [planned] `./errors` — typed `AppError` + HTTP-status map
 - [planned] `./env` — `defineEnv(zodSchema)` cold-start validation
 - [planned] `./tracing` — span emit + `traceparent` propagation via
   `@vllnt/logger`
 - [planned] `./testing` — fixture factories + `withIdentity`
-- [planned] `./relationships`, `./validators`, `./pagination`, `./rls`,
-  `./triggers`, `./http`
+- [planned] `./relationships`, more `./validators` (`partial`/`typedV`/zod
+  bridge), `./pagination`, `./rls`, `./triggers`, `./http`
 - [planned] `./react` — optional tree-shakeable front-end hooks layer
 
 ## Installation
@@ -50,11 +52,11 @@ See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 pnpm add @vllnt/convex-helpers
 ```
 
-This README describes current `main`. `./better-auth` and `./identity` first
-ship in `0.2.0`; `0.1.0` has only the root utilities and `./mcp`. Builds of
-`main` are published to the `canary` dist-tag; canary tags move, so pin the
-resolved version and test before production use. Modules marked **planned** are
-not exported yet.
+This README describes current `main`. `./better-auth`, `./identity`,
+`./builders` and `./validators` first ship in `0.2.0`; `0.1.0` has only the root
+utilities and `./mcp`. Builds of `main` are published to the `canary` dist-tag;
+canary tags move, so pin the resolved version and test before production use.
+Modules marked **planned** are not exported yet.
 
 `convex@^1.45.0` is a peer dependency:
 
@@ -167,6 +169,61 @@ validate the host's entire auth configuration. `cookieSettingsForSite(siteUrl)`
 returns secure, HttpOnly, SameSite=None attributes for a valid HTTPS origin
 only; it does not replace CSRF/origin protection and is for hosts requiring
 cross-site cookies.
+
+### Custom functions — `./builders`
+
+Resolve shared context once for every function made with a builder. The
+signatures match `convex-helpers/server/customFunctions` (0.1.124), so switching
+is an import-path change.
+
+```ts
+import {
+  customCtx,
+  customMutation,
+  customQuery,
+} from "@vllnt/convex-helpers/builders";
+import { mutation, query } from "./_generated/server";
+
+// customCtx(...) form: add ctx fields.
+export const authQuery = customQuery(
+  query,
+  customCtx(async (ctx) => ({ user: await requireUser(ctx) })),
+);
+
+// { args, input } form: `args` are taken out of the handler's args and passed
+// to `input`, which returns ctx fields, args to add and an optional onSuccess.
+export const userMutation = customMutation(mutation, {
+  args: {},
+  input: async (ctx) => ({ args: {}, ctx: { user: await requireUser(ctx) } }),
+});
+
+export const rename = userMutation({
+  args: { name: v.string() },
+  handler: async (ctx, { name }) => ctx.db.patch(ctx.user._id, { name }),
+});
+```
+
+`customCtx`'s callback also receives the definition's extra keys (everything but
+`args`, `handler` and `returns`). Builders add no auth of their own: the `input`
+you write decides who may call.
+
+### Runtime validation — `./validators`
+
+```ts
+import { doc, parse, validate } from "@vllnt/convex-helpers/validators";
+
+validate(v.object({ a: v.string() }), value); // boolean, narrows `value`
+validate(validator, value, { throw: true }); // throws ValidationError
+validate(validator, value, { allowUnknownFields: true, throw: true });
+const clean = parse(validator, JSON.parse(raw)); // validates, drops unknown fields
+const userDoc = doc(schema, "users"); // table validator + _id + _creationTime
+```
+
+The `db` option of `convex-helpers` (checking which table a `v.id` belongs to)
+is refused; `v.id` checks that the value is a string. Object fields are matched
+as own properties, so inherited names such as `constructor` count as unknown
+fields (upstream accepts them). See
+[docs/API.md](docs/API.md#validators-shipped).
 
 ### Identity — `./identity`
 
