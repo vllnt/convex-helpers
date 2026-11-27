@@ -3,6 +3,7 @@
  * Does not import better-auth — the host still constructs `betterAuth(...)`.
  */
 
+/** Better Auth options returned by `cookieSettingsForSite` for an HTTPS site. */
 export type CookieSettings = {
   advanced: {
     defaultCookieAttributes: {
@@ -122,6 +123,15 @@ export function trustedOriginsFromList(
   return [site, ...parsed];
 }
 
+/**
+ * Same as `trustedOriginsFromList`, with the extra origins as one
+ * comma-separated string.
+ *
+ * @param siteUrl - The deployment site URL
+ * @param csv - Comma-separated extra origins
+ * @param options - `previewPattern`, an exact HTTPS wildcard pattern
+ * @returns The origins, or `undefined` when no extra origin parses
+ */
 export function trustedOriginsFromCsv(
   siteUrl: string,
   csv: string,

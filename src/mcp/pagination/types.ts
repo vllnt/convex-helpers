@@ -16,11 +16,13 @@ export type PaginationConfig = {
   twoPhaseDiscovery?: boolean;
 };
 
+/** Name and description of one tool, as returned by `tools/list_summary`. */
 export type ToolSummary = {
   description: string;
   name: string;
 };
 
+/** One page of a paginated tool list; `nextCursor` is set while more pages remain. */
 export type ToolPage<T extends object> = {
   nextCursor?: string;
   tools: T[];

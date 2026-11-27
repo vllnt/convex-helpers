@@ -1,57 +1,23 @@
-import { readFileSync } from "node:fs";
-
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 import { codeTypeNames } from "../scripts/document-links.mjs";
 
+import {
+  entries,
+  exportsOf,
+  exportSymbols,
+  program,
+  read,
+  summaryOf,
+} from "./package-exports.js";
+
 /**
  * Checks that docs/API.md names every public export (values and types) of each
  * package entry in that entry's section, and that each entry exports every name
  * the reference lists for it (Export/Function tables, "Exported types",
- * signature headings).
+ * signature headings). Every export also needs a TSDoc summary.
  */
-
-const read = (path: string): string =>
-  readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-
-const manifest = JSON.parse(read("package.json")) as {
-  exports: Record<string, string | { default: string }>;
-};
-const entries = Object.entries(manifest.exports).flatMap(([subpath, target]) =>
-  typeof target === "string"
-    ? []
-    : [
-        {
-          file: target.default
-            .replace(/^\.\/dist\//u, "src/")
-            .replace(/\.js$/u, ".ts"),
-          subpath,
-        },
-      ],
-);
-
-const program = ts.createProgram(
-  entries.map((entry) => entry.file),
-  {
-    module: ts.ModuleKind.NodeNext,
-    moduleResolution: ts.ModuleResolutionKind.NodeNext,
-    skipLibCheck: true,
-    target: ts.ScriptTarget.ES2022,
-  },
-);
-const checker = program.getTypeChecker();
-
-function exportsOf(file: string): string[] {
-  const source = program.getSourceFile(file);
-  const symbol =
-    source === undefined ? undefined : checker.getSymbolAtLocation(source);
-  if (symbol === undefined) throw new Error(`cannot read exports of ${file}`);
-  return checker
-    .getExportsOfModule(symbol)
-    .map((item) => item.name)
-    .sort();
-}
 
 const api = read("docs/API.md");
 
@@ -143,6 +109,10 @@ const declaredTypes = new Set(
     ),
 );
 
+/** The README's error table quotes messages, whose capitalized words are not type names. */
+const withoutErrorTable = (text: string): string =>
+  text.replace(/\n## Errors and fixes\n[\s\S]*?(?=\n## )/u, "\n");
+
 describe("docs/API.md matches the package exports", () => {
   it.each(entries)(
     "documents every export of $subpath",
@@ -176,12 +146,22 @@ describe("docs/API.md matches the package exports", () => {
   it.each(["docs/API.md", "README.md", "llms.txt"])(
     "%s names only real exports or known outside names in code",
     (file) => {
-      const named = codeTypeNames(read(file));
+      const named = codeTypeNames(withoutErrorTable(read(file)));
       expect(
         [...new Set(named)].filter(
           (name) => !publicNames.has(name) && !outsideNames.has(name),
         ),
       ).toStrictEqual([]);
+    },
+  );
+
+  it.each(entries)(
+    "gives every export of $subpath a TSDoc summary",
+    ({ file }) => {
+      const bare = exportSymbols(file)
+        .filter((symbol) => summaryOf(symbol).trim() === "")
+        .map((symbol) => symbol.name);
+      expect(bare).toStrictEqual([]);
     },
   );
 

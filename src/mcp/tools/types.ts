@@ -1,10 +1,12 @@
 import type { ConvexValidator } from "../types.js";
 
+/** Kind of Convex function a tool calls. */
 export type FunctionType = "action" | "mutation" | "query";
 
 export type HookResult = OnCallResult | undefined;
 export type HookReturn = HookResult | Promise<HookResult> | Promise<void>;
 
+/** A Convex function exposed as an MCP tool; build it with `query()`, `mutation()` or `action()`. */
 export type ToolDef = {
   args?: ConvexValidator;
   description?: string;
@@ -15,6 +17,7 @@ export type ToolDef = {
   type: FunctionType;
 };
 
+/** What lifecycle hooks receive for one tool call, in the `before`, `success` or `error` phase. */
 export type CallContext = {
   /**
    * Raw bearer credential. Sensitive: use it only to validate the caller, and
@@ -33,6 +36,7 @@ export type CallContext = {
   toolName: string;
 };
 
+/** What a lifecycle hook may return: abort the call, inject server-side args, or set the public error message. */
 export type OnCallResult = {
   /** Set true to abort execution. Only checked during "before" phase. */
   abort?: boolean;
@@ -46,9 +50,10 @@ export type OnCallResult = {
    * (server-side wins).
    *
    * Convention: keys MUST use the framework-reserved underscore prefix
-   * (e.g., `_mcp_principal`, `_request_id`). Request args containing `_`-prefixed
-   * keys are rejected before the hook runs, so this prefix is safe for
-   * server-side context injection (auth, tracing, multi-tenancy, audit, etc.).
+   * (e.g., `_mcp_principal`, `_request_id`). Request args never carry
+   * `_`-prefixed keys to the hook: the MCP SDK drops undeclared args and the
+   * handler rejects any that remain, so this prefix is safe for server-side
+   * context injection (auth, tracing, multi-tenancy, audit, etc.).
    *
    * Empty objects and undefined are no-ops (no allocation, no merge).
    *
@@ -75,6 +80,11 @@ export type OnCallResult = {
   message?: string;
 };
 
+/**
+ * Server-wide hooks; `onToolCall` runs before each tool call and after it
+ * succeeds or fails. When a tool sets `onError`, only `onError` runs in the
+ * error phase, not `onToolCall`.
+ */
 export type LifecycleHooks = {
   onToolCall?: (ctx: CallContext) => HookReturn;
 };

@@ -14,7 +14,7 @@ and this project adheres to
 
 - `./validators`: `validate` and `parse` reject arrays and class instances
   (`Date`, `Map`, ...) for `v.record(...)` validators, as Convex and
-  `convex-helpers` 0.1.130+ do. They were accepted, and `parse` turned an array
+  `convex-helpers` 0.1.136 do. They were accepted, and `parse` turned an array
   into an object. The error reads `` Expected `record`, got `Array` ``.
 - Shipped docs and source comments no longer name repository-only files (proof
   scripts, tests, the vitest config, maintainer publication notes) without a
@@ -34,9 +34,18 @@ and this project adheres to
   code is ignored); or when a shipped file names a repository file that is not
   packed. A test keeps `docs/API.md` in step with every entry's exports and
   checks that the docs name no internal type.
+- README for coding agents: when to use, install and quick start in the first
+  40 lines, a table of every export, common tasks, every error text with its
+  cause and fix, limits, compatibility and links. `llms.txt` carries the same
+  summary and links to the reference and the errors table. Every export has a
+  TSDoc summary. A test checks the README layout, the export and error tables,
+  links, the footer and the `llms.txt` Ecosystem block, and type-checks every
+  README example against the built package.
 
 ### Changed
 
+- `package.json` `description` and `keywords` now name what the package does
+  and its stack.
 - `./builders` and `./validators` parity baseline is now `convex-helpers`
   0.1.136 (`customFunctions` is unchanged since 0.1.124). Upstream now also
   treats inherited names such as `constructor` as unknown object fields, so that
@@ -50,9 +59,11 @@ and this project adheres to
 - Development dependencies: `convex` 1.51.0, `convex-test` 0.0.73, `vitest` and
   `@vitest/coverage-v8` 5.1.1, `@vllnt/typescript` 3.0.0 (with
   `exactOptionalPropertyTypes` left off so the published types do not change),
-  pnpm 10.34.9. The peer ranges are unchanged; the tests and a type-check of a
-  consumer of the packed package pass at their minimums (`convex` 1.45.0,
-  `@modelcontextprotocol/sdk` 1.29.0, `zod` 4.3.6).
+  pnpm 10.34.9. The peer ranges are unchanged. CI tests with the lockfile
+  versions (convex 1.51.0); the test suite and a packed-consumer type-check
+  were also run by hand at `convex` 1.45.0, `@modelcontextprotocol/sdk` 1.29.0
+  and `zod` 4.3.6.
+- `engines.node` is now `>=20`, matching the `convex` peer's own requirement.
 
 ## [0.2.0] - 2026-11-26
 
