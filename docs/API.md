@@ -229,7 +229,7 @@ Cursors are HMAC-signed per server instance and verified in constant time.
 | `convexArgsToZod(argsValidator)` | Convert a `v.object()` args validator to a `zod` object schema. |
 | `UnsupportedValidatorError`      | Thrown for validator kinds with no MCP/JSON-Schema mapping.     |
 
-### Request behavior & error codes
+### Request behavior and error codes
 
 | Condition                                                                 | Response                                                                                                               |
 | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
