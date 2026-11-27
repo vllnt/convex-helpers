@@ -8,11 +8,11 @@
   "files": [
     "dist",
     "src",
-    "!src/**/*.test.ts",
-    "docs",
+    "docs/API.md",
     "CHANGELOG.md",
     "NOTICE",
     "llms.txt",
+    "!src/**/*.test.*",
     "!src/**/*.spec.*"
   ],
   "exports": {
@@ -49,12 +49,13 @@
     "build": "tsc --project ./tsconfig.build.json",
     "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/typecheck.tsbuildinfo && tsc --noEmit --project tests/tsconfig.json",
     "typecheck:ci": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/typecheck-ci.tsbuildinfo --project tsconfig.ci.json && tsc --noEmit --project tests/tsconfig.json",
-    "lint": "pnpm check:agents && pnpm check:docs && eslint --cache --cache-location node_modules/.cache/eslint/ .",
+    "lint": "pnpm check:agents && pnpm check:docs && pnpm check:package && eslint --cache --cache-location node_modules/.cache/eslint/ .",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --typecheck --clearScreen false",
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
     "generate:llms": "node scripts/generate-llms.mjs",
     "check:docs": "node scripts/check-docs.mjs",
+    "check:package": "node scripts/check-package.mjs",
     "preversion": "pnpm install --frozen-lockfile && pnpm build && pnpm test && pnpm typecheck && pnpm generate:llms",
     "check:agents": "node -e \"const f=require('node:fs');if(!f.existsSync('AGENTS.md')||f.existsSync('CLAUDE.md')||f.existsSync('.claude'))process.exit(1)\""
   },
@@ -110,7 +111,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "homepage": "https://github.com/vllnt/convex-helpers#readme",
+  "homepage": "https://oss.vllnt.com/packages/convex-helpers",
   "bugs": {
     "url": "https://github.com/vllnt/convex-helpers/issues"
   },

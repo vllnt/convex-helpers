@@ -8,6 +8,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- The npm package now states that its bundled docs (`docs/API.md`, `README.md`,
+  `CHANGELOG.md`, `llms.txt`) match the installed version: a "For coding agents"
+  note in the README and `llms.txt`, relative `llms.txt` links to the shipped
+  files, an Ecosystem link and a Related packages section. `docs/API.md` now
+  lists the exported types of each entry.
+- `pnpm check:package` (run by `pnpm lint`) fails when the tarball misses a
+  required doc file, ships contributor or internal files, or when a relative
+  `llms.txt` link does not resolve inside it.
+
+### Changed
+
+- The tarball no longer ships `docs/READINESS.md` (maintainer publication
+  notes). `homepage` is now https://oss.vllnt.com/packages/convex-helpers.
+- Tooling: every push to `main` touching the package publishes a canary (no
+  repository-variable gate), and docs-only changes now trigger it.
+
 ## [0.2.0] - 2026-11-26
 
 ### Fixed

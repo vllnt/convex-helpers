@@ -23,25 +23,38 @@ are not CSRF protection. Existing identity integration tests use convex-test moc
 not real Better Auth or backend OCC proof. Errors/env/tracing remain planned. Builders add no authorization: the host's
 `input` decides who may call.
 
+## For coding agents
+
+This package ships its docs: `node_modules/@vllnt/convex-helpers/docs/API.md`,
+`README.md`, `CHANGELOG.md` and this `llms.txt`. They match the installed version.
+Read them before writing code that uses this package. Type declarations are in
+`dist/` and the TypeScript source is in `src/`.
+
 ## Release channels
 
-This index describes current main. `./better-auth`, `./identity`, `./builders` and
-`./validators` first ship in `0.2.0`; `0.1.0` has only the root utilities and `./mcp`. Prereleases are published
+On GitHub this index describes `main`; the copy in each npm version describes that
+version. `./better-auth`, `./identity`, `./builders` and `./validators` first ship in `0.2.0`; `0.1.0` has only the root utilities and `./mcp`. Prereleases are published
 to the `canary` dist-tag; pin and test them before deployment.
 MCP requires optional peers `@modelcontextprotocol/sdk@^1.29.0` and `zod@^4.3.6`;
 the package is ESM-only and requires `convex@^1.45.0`.
 
 ## Docs
 
-- [README](README.md): Project overview, installation, usage examples, and planned surface
-- [API Reference](docs/API.md): Exported utilities, signatures, and compatibility
-- [Changelog](CHANGELOG.md): Version history and release notes
-- [Roadmap](ROADMAP.md): Planned modules and milestones
-- [Contributing](CONTRIBUTING.md): Development setup, validation commands, and release workflow
+- [README](./README.md): Project overview, installation, usage examples, and planned surface
+- [API Reference](./docs/API.md): Exported utilities, signatures, and compatibility
+- [Changelog](./CHANGELOG.md): Version history and release notes
+- [Notice](./NOTICE): Attribution for the convex-helpers behaviour and types these entries follow
+- [License](./LICENSE): MIT license
 
 ## Optional
 
-- [AGENTS](AGENTS.md): Canonical agent instructions for this repository
-- [Security Policy](SECURITY.md): Vulnerability reporting policy
-- [Code of Conduct](CODE_OF_CONDUCT.md): Community participation guidelines
-- [License](LICENSE): MIT license
+Repository files, not in the npm package; they describe `main`.
+
+- [Roadmap](https://github.com/vllnt/convex-helpers/blob/main/ROADMAP.md): Planned modules and milestones
+- [Contributing](https://github.com/vllnt/convex-helpers/blob/main/CONTRIBUTING.md): Development setup, validation commands, and release workflow
+- [Security Policy](https://github.com/vllnt/convex-helpers/blob/main/SECURITY.md): Vulnerability reporting policy
+- [Code of Conduct](https://github.com/vllnt/convex-helpers/blob/main/CODE_OF_CONDUCT.md): Community participation guidelines
+
+## Ecosystem
+
+- [vllnt oss](https://oss.vllnt.com/llms.txt): Index of the vllnt open-source packages on npm

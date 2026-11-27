@@ -23,6 +23,13 @@ mounting. Stateful concerns (rate limiting, idempotency, flags) belong in
 
 See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 
+## For coding agents
+
+The npm package bundles its docs at `node_modules/@vllnt/convex-helpers/docs/`
+(`API.md`), next to `README.md`, `CHANGELOG.md` and `llms.txt`. They match the
+installed version. Read them before writing code that uses this package. Type
+declarations are in `dist/` and the TypeScript source is in `src/`.
+
 ## Features
 
 - `asyncMap` — parallel async map that preserves order
@@ -52,11 +59,12 @@ See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
 pnpm add @vllnt/convex-helpers
 ```
 
-This README describes current `main`. `./better-auth`, `./identity`,
-`./builders` and `./validators` first ship in `0.2.0`; `0.1.0` has only the root
-utilities and `./mcp`. Builds of `main` are published to the `canary` dist-tag;
-canary tags move, so pin the resolved version and test before production use.
-Modules marked **planned** are not exported yet.
+On GitHub this README describes `main`; the copy in each npm version describes
+that version. `./better-auth`, `./identity`, `./builders` and `./validators`
+first ship in `0.2.0`; `0.1.0` has only the root utilities and `./mcp`. Builds
+of `main` are published to the `canary` dist-tag; canary tags move, so pin the
+resolved version and test before production use. Modules marked **planned** are
+not exported yet.
 
 `convex@^1.45.0` is a peer dependency:
 
@@ -297,9 +305,9 @@ concurrent bootstrap mutations with a synthetic identity, one row; tests indexed
 OCC, not login) and `scripts/better-auth-proof.mjs` (real Better Auth sign-in,
 anonymous and email/password, then the issued JWTs sent to Convex functions that
 use `./identity` and `./better-auth`; see
-[docs/READINESS.md](./docs/READINESS.md#real-better-auth-loginjwt-proof) for
-versions and assertions). Consuming apps must verify their own auth integration
-independently.
+[docs/READINESS.md](https://github.com/vllnt/convex-helpers/blob/main/docs/READINESS.md#real-better-auth-loginjwt-proof)
+for versions and assertions). Consuming apps must verify their own auth
+integration independently.
 
 ## Documentation and security
 
@@ -314,16 +322,35 @@ independently.
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, code style, and
 PR guidelines.
 
+## Related packages
+
+- [`convex-helpers`](https://www.npmjs.com/package/convex-helpers) — the
+  official helpers. `./builders` and `./validators` follow its signatures; use
+  it for everything this package does not cover.
+- [`@convex-dev/better-auth`](https://www.npmjs.com/package/@convex-dev/better-auth)
+  — the Better Auth component. `./better-auth` only builds origin and cookie
+  settings to pass to it.
+- [`@vllnt/convex-api-keys`](https://oss.vllnt.com/packages/convex-api-keys) —
+  stores, validates and revokes API keys. Use it behind `./mcp` `auth.validate`
+  when keys must be issued and revoked at runtime.
+- [`@vllnt/convex-idempotency`](https://oss.vllnt.com/packages/convex-idempotency)
+  and the other `@vllnt/convex-*` components — stateful concerns (own tables,
+  `app.use()`), which this package leaves out.
+- [`@vllnt/logger`](https://oss.vllnt.com/packages/logger) — structured logging.
+  This package logs nothing; hosts own observability.
+- `@vllnt/convex-mcp` — deprecated; its code now ships as `./mcp` here.
+
 ## Author
 
 Built by [bntvllnt](https://github.com/bntvllnt) ·
 [bntvllnt.com](https://bntvllnt.com) · [X @bntvllnt](https://x.com/bntvllnt)
-
-Part of the [@vllnt](https://github.com/vllnt) Convex component fleet —
-[vllnt.com](https://vllnt.com)
 
 If this is useful, [sponsor the work](https://github.com/sponsors/bntvllnt).
 
 ## License
 
 [MIT](./LICENSE)
+
+---
+
+Part of vllnt oss: https://oss.vllnt.com
