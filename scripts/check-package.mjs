@@ -8,7 +8,11 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { posix } from "node:path";
 
-import { brokenLinks, linkTargets, repoOnlyMentions } from "./document-links.mjs";
+import {
+  brokenLinks,
+  linkTargets,
+  repoOnlyMentions,
+} from "./document-links.mjs";
 
 const root = new URL("..", import.meta.url);
 const [pack] = JSON.parse(

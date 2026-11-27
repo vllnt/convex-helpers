@@ -41,7 +41,6 @@ and this project adheres to
   0.1.136 (`customFunctions` is unchanged since 0.1.124). Upstream now also
   treats inherited names such as `constructor` as unknown object fields, so that
   is no longer a difference; the `db` option remains refused.
-
 - The tarball no longer ships
   [`docs/READINESS.md`](https://github.com/vllnt/convex-helpers/blob/main/docs/READINESS.md)
   (maintainer publication notes). `homepage` is now

@@ -75,12 +75,12 @@ function spans(text: string): string[] {
   });
 }
 
+/** A `###` heading lists a signature (`name(...)`, `a / b`) or one bare name. */
 function headingNames(heading: string): string[] {
-  if (!heading.includes("(") && !heading.includes(" / ")) return [];
-  return heading
-    .slice(4)
-    .split(" / ")
-    .flatMap((part) => identifier.exec(part)?.[0] ?? []);
+  const text = heading.slice(4).replaceAll("`", "").trim();
+  if (!text.includes("(") && !text.includes(" / "))
+    return /\s/u.test(text) ? [] : [text];
+  return text.split(" / ").flatMap((part) => identifier.exec(part)?.[0] ?? []);
 }
 
 function exportTableNames(block: string): string[] {
@@ -102,6 +102,21 @@ function listedExports(section: string): string[] {
   });
   return [...new Set(names)].sort();
 }
+
+/** Names the docs may show in code that are not this package's exports. */
+const outsideNames = new Set([
+  "ArrayBuffer",
+  "Date",
+  "Map",
+  "Promise",
+  "Record",
+  "Request",
+  "Response",
+  "Bearer",
+  "Origin",
+  "AppError",
+  "RowLevelSecurity",
+]);
 
 const publicNames = new Set(entries.flatMap((entry) => exportsOf(entry.file)));
 
@@ -127,10 +142,8 @@ describe("docs/API.md matches the package exports", () => {
   it.each(entries)(
     "documents every export of $subpath",
     ({ file, subpath }) => {
-      const section = sectionFor(subpath);
-      const undocumented = exportsOf(file).filter(
-        (name) => !new RegExp(`(\`|^### )${name}\\b`, "mu").test(section),
-      );
+      const listed = new Set(listedExports(sectionFor(subpath)));
+      const undocumented = exportsOf(file).filter((name) => !listed.has(name));
       expect(undocumented).toStrictEqual([]);
     },
   );
@@ -152,6 +165,22 @@ describe("docs/API.md matches the package exports", () => {
         (name) => declaredTypes.has(name) && !publicNames.has(name),
       );
       expect(internal).toStrictEqual([]);
+    },
+  );
+
+  it.each(["docs/API.md", "README.md", "llms.txt"])(
+    "%s names only real exports or known outside names in code",
+    (file) => {
+      const named = [
+        ...read(file)
+          .replaceAll(/^```[\s\S]*?^```/gmu, "")
+          .matchAll(/`([A-Z][a-z]\w*)(?:<[^`]*>)?(?:\[\])?`/gu),
+      ].map((match) => match[1] ?? "");
+      expect(
+        [...new Set(named)].filter(
+          (name) => !publicNames.has(name) && !outsideNames.has(name),
+        ),
+      ).toStrictEqual([]);
     },
   );
 

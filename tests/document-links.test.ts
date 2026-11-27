@@ -38,6 +38,16 @@ describe("linkTargets", () => {
       "`[x](span.md)`\n\n```md\n[y](fence.md)\n```\n[z](real.md)";
     expect(linkTargets(markdown)).toStrictEqual(["real.md"]);
   });
+
+  it("does not let a stray backtick hide later paragraphs", () => {
+    const markdown = "Use the ` char.\n\n[a](ROADMAP.md)\n\nand `x`";
+    expect(linkTargets(markdown)).toStrictEqual(["ROADMAP.md"]);
+  });
+
+  it("does not close a fence on a line with an info string", () => {
+    const markdown = "```\ncode\n```bash\n[a](inside.md)\n```\n[b](after.md)";
+    expect(linkTargets(markdown)).toStrictEqual(["after.md"]);
+  });
 });
 
 describe("headingAnchors", () => {
@@ -99,6 +109,10 @@ describe("brokenLinks", () => {
     ]);
   });
 
+  it("reports a malformed escape instead of throwing", () => {
+    expect(check("[a](bad%E0.md)")).toStrictEqual(["README.md -> bad%E0.md"]);
+  });
+
   it("resolves links relative to the linking doc", () => {
     expect(check("", "[a](../README.md) [b](README.md)")).toStrictEqual([
       "docs/API.md -> README.md",
@@ -116,6 +130,15 @@ describe("repoOnlyMentions", () => {
         repoOnly,
       ),
     ).toStrictEqual(repoOnly);
+  });
+
+  it("reports them with a leading ./", () => {
+    expect(
+      repoOnlyMentions(
+        "Run ./scripts/proof.mjs or `./vitest.config.mts`.",
+        repoOnly,
+      ),
+    ).toStrictEqual(["scripts/proof.mjs", "vitest.config.mts"]);
   });
 
   it("allows them as the text of an absolute link or inside a URL", () => {

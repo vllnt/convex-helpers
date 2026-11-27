@@ -1,9 +1,13 @@
 // Link and path checks for the docs shipped in the npm tarball, used by
 // check-package.mjs and unit-tested in tests/document-links.test.ts.
+// Not modelled (they fail loudly as broken anchors rather than pass): setext,
+// blockquoted and HTML headings, and emphasis markers inside heading slugs.
 
+// A closing fence carries no info string; an unclosed fence runs to the end.
 const fence =
-  /^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1[^\n]*$|(?![\s\S]))/gmu;
-const codeSpan = /(`+)(?!`)[\s\S]*?[^`]\1(?!`)/gu;
+  /^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1[`~]*[ \t]*$|(?![\s\S]))/gmu;
+// A code span never crosses a blank line (the end of a paragraph).
+const codeSpan = /(`+)(?!`)(?:(?!\n[ \t]*\n)[\s\S])*?[^`]\1(?!`)/gu;
 
 /** Markdown with fenced code blocks and inline code spans blanked out. */
 export function withoutCode(markdown) {
@@ -76,8 +80,13 @@ export function brokenLinks(docs, packed, { dirname, join }) {
     for (const target of linkTargets(markdown)) {
       if (isAbsolute(target)) continue;
       const [path, anchor] = target.split("#");
-      const file = path === "" ? doc : join(dirname(doc), decodeURI(path));
-      if (!packed.has(file)) {
+      let file;
+      try {
+        file = path === "" ? doc : join(dirname(doc), decodeURI(path));
+      } catch {
+        file = undefined;
+      }
+      if (file === undefined || !packed.has(file)) {
         broken.push(`${doc} -> ${target}`);
         continue;
       }
@@ -108,7 +117,10 @@ export function repoOnlyMentions(text, repoOnly) {
       "",
     )
     .replace(/[a-z][a-z\d+.-]*:\/\/[^\s)>\]]+/giu, "");
+  // A leading `./` still names the same file.
   return repoOnly.filter((path) =>
-    new RegExp(`(?<![\\w./-])${escape(path)}(?![\\w/-])`, "u").test(plain),
+    new RegExp(`(?<![\\w./-])(?:\\./)?${escape(path)}(?![\\w/-])`, "u").test(
+      plain,
+    ),
   );
 }

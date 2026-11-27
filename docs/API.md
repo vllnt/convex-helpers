@@ -165,7 +165,7 @@ authorize inside the backing function. JSON `int64` strings become `bigint`,
 base64 `bytes` strings become `ArrayBuffer`, and native Convex results use
 Convex's lossless tagged JSON encoding.
 
-### Pagination
+### Tool-list pagination
 
 `PaginationConfig` opts `tools/list` into cursor pagination. `tools/list`
 **without** a cursor always returns ALL tools (backward-compatible); pagination
@@ -265,6 +265,7 @@ their own code. The host configures Better Auth and its anonymous plugin.
 | `requireFromAuth(ctx, lookup)`                 | Same row, or `USER_NOT_INITIALIZED` (also for missing session).                                                                                |
 | `getOrCreateFromAuth(ctx, { lookup, insert })` | Lookup then insert if absent; both callbacks receive subject.                                                                                  |
 | `retargetRows(rows, apply)`                    | At most 1000 rows, sequential callbacks returning `deleted`, `patched`, or `skipped`; returns counts. Oversized pages reject before callbacks. |
+| `isAnonymousIdentity(identity)`                | `true` only for a literal boolean `isAnonymous: true` claim.                                                                                   |
 
 Exported types: `AuthCtx` (`{ auth, trustedIssuer }`) and `AuthIdentity`.
 
