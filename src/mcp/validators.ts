@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { ConvexValidator } from "./types.js";
 
+/** Thrown when a Convex validator kind has no MCP (zod/JSON Schema) mapping. */
 export class UnsupportedValidatorError extends Error {
   constructor(kind: string) {
     super(
@@ -171,6 +172,13 @@ function convertKind(validator: ConvexValidator): z.ZodTypeAny {
   }
 }
 
+/**
+ * Converts one Convex validator to a zod schema.
+ *
+ * @param validator - A Convex validator (`v.*`)
+ * @returns The matching zod schema, optional when the validator is
+ * @throws {UnsupportedValidatorError} For kinds with no mapping
+ */
 export function convertValidator(validator: ConvexValidator): z.ZodTypeAny {
   const base = convertKind(validator);
   if (validator.isOptional === "optional") {
@@ -179,6 +187,13 @@ export function convertValidator(validator: ConvexValidator): z.ZodTypeAny {
   return base;
 }
 
+/**
+ * Converts a `v.object()` args validator to a zod object schema.
+ *
+ * @param argumentsValidator - The function's `v.object({...})` args validator
+ * @returns A zod object schema
+ * @throws {Error} When the validator is not a `v.object()`
+ */
 export function convexArgsToZod(
   argumentsValidator: ConvexValidator,
 ): z.ZodObject<Record<string, z.ZodTypeAny>> {

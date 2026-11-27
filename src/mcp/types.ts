@@ -1,3 +1,4 @@
+/** Structural shape of a Convex validator (`v.*`) as read by the MCP schema conversion. */
 export type ConvexValidator = {
   element?: ConvexValidator;
   fields?: Record<string, ConvexValidator>;
@@ -24,6 +25,11 @@ export type ConvexClient = {
   /* eslint-enable @typescript-eslint/no-explicit-any */
 };
 
+/**
+ * Bearer-key authentication for the MCP endpoint. `validate` gates every
+ * request (default deny); optional `convexToken` returns a Convex auth token
+ * for the key, used for each Convex call.
+ */
 export type AuthConfig = {
   convexToken?: (
     apiKey: string,
@@ -37,6 +43,7 @@ import type { LifecycleHooks, ToolDef } from "./tools/types.js";
 
 export type { PaginationConfig, ResourceDef, ToolDef };
 
+/** Options for `createMCPServer`: auth (required), tools, resources, Convex target, hooks and pagination. */
 export type ServerConfig = {
   auth: AuthConfig;
   client?: ConvexClient;
@@ -49,6 +56,7 @@ export type ServerConfig = {
   version?: string;
 };
 
+/** The value `createMCPServer` returns; `handler()` gives the `GET` and `POST` Web request handlers. */
 export type ConvexMCPServer = {
   handler: () => {
     GET: (request: Request) => Promise<Response>;

@@ -6,7 +6,7 @@
 `node_modules/@vllnt/convex-helpers/docs/API.md` describes the installed
 version. `./better-auth`, `./identity`, `./builders` and `./validators` first
 ship in `0.2.0`; `0.1.0` has only the root utilities and `./mcp`. See the
-[installation guide](../README.md#installation). Planned modules are not
+[install section](../README.md#install). Planned modules are not
 exports.
 
 This library provides pure functions and host-`ctx` glue utilities. It is a

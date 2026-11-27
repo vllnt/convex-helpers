@@ -1,7 +1,7 @@
 {
   "name": "@vllnt/convex-helpers",
   "version": "0.2.1",
-  "description": "Typed Convex host-side utilities, trusted-origin and cookie configuration helpers, identity-row glue, and optional MCP tools.",
+  "description": "TypeScript helpers for Convex backends: custom function builders, runtime validators, auth identity rows, Better Auth origins and an MCP tool server.",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.34.9",
@@ -130,7 +130,10 @@
     "convex-helpers",
     "typescript",
     "backend",
-    "utils",
+    "custom-functions",
+    "validators",
+    "authentication",
+    "better-auth",
     "mcp",
     "model-context-protocol"
   ]

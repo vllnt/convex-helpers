@@ -34,9 +34,18 @@ and this project adheres to
   code is ignored); or when a shipped file names a repository file that is not
   packed. A test keeps `docs/API.md` in step with every entry's exports and
   checks that the docs name no internal type.
+- README for coding agents: when to use, install and quick start in the first
+  40 lines, a table of every export, common tasks, every error text with its
+  cause and fix, limits, compatibility and links. `llms.txt` carries the same
+  summary and links to the reference and the errors table. Every export has a
+  TSDoc summary. A test checks the README layout, the export and error tables,
+  links, the footer and the `llms.txt` Ecosystem block, and type-checks every
+  README example against the built package.
 
 ### Changed
 
+- `package.json` `description` and `keywords` now name what the package does
+  and its stack.
 - `./builders` and `./validators` parity baseline is now `convex-helpers`
   0.1.136 (`customFunctions` is unchanged since 0.1.124). Upstream now also
   treats inherited names such as `constructor` as unknown object fields, so that

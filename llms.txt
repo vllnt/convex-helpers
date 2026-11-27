@@ -1,60 +1,83 @@
 # @vllnt/convex-helpers
 
-> Typed Convex host-side utilities, trusted-origin and cookie configuration helpers,
-> identity-row glue, and optional MCP tools.
+> TypeScript helpers for Convex backends: custom function builders, runtime
+> validators, auth identity rows, Better Auth origins and an MCP tool server.
 
-`@vllnt/convex-helpers` is a helpers library (not a sandboxed Convex component) for
-Convex backends. It provides pure functions and host-`ctx` glue utilities that run with the host's
-`ctx` — no own tables, no `app.use()` mounting. The library targets `convex@^1.45.0`. Stateful
-concerns (rate limiting, idempotency, flags, etc.) belong in `@convex-dev/*` or `@vllnt/convex-*`
-components. Optional entries: `./better-auth` (trusted origins + HTTPS cookies), `./identity` (`getOrCreateFromAuth` / `retargetRows`), `./builders` (`customQuery` / `customMutation` / `customAction` / `customCtx`, matching `convex-helpers/server/customFunctions`), `./validators` (`validate` / `parse` / `doc`, matching `convex-helpers/validators` 0.1.136; it refuses the `db` id-table option), and a tree-shakeable `./mcp` entry exposes Convex functions as Model Context
-Protocol tools (`@vllnt/convex-helpers/mcp`); it needs the optional peer deps
-`@modelcontextprotocol/sdk` and `zod`, so backend-only consumers pull neither.
-
-Identity callbacks require a trusted single issuer and one Convex mutation transaction
-for race-safe bootstrap. Host-owned `AuthCtx.trustedIssuer` is required; helpers fail closed when it is
-missing or empty and enforce issuer matching before lookup/insert. MCP resources
-run no lifecycle hooks (authorize in the backing function), and the MCP endpoint
-sets no body/stream/deadline caps. MCP auth/hooks have a 10-second deadline; failing
-before hooks deny dispatch and raw exceptions are not logged. `retargetRows` processes at most 1000 rows sequentially; it
-is not an authorized account merge. Hosts install/configure Better Auth themselves.
-Origin helpers validate syntax, not deployment ownership; cross-site cookie attributes
-are not CSRF protection. Existing identity integration tests use convex-test mocks,
-not real Better Auth or backend OCC proof. Errors/env/tracing remain planned. Builders add no authorization: the host's
-`input` decides who may call.
+`@vllnt/convex-helpers` is a helpers library for Convex backends, not a Convex
+component: it runs with the host's `ctx`, owns no tables and needs no
+`app.use()`. It requires `convex@^1.45.0` and is ESM-only. Entries: the root
+(`asyncMap`, `pruneNull`, `nullThrows`), `./builders` (`customQuery`,
+`customMutation`, `customAction`, `customCtx`, matching
+`convex-helpers/server/customFunctions` 0.1.136), `./validators` (`validate`,
+`parse`, `doc`, matching `convex-helpers/validators` 0.1.136 except that the
+`db` option is refused), `./identity` (`requireIdentity`, `getFromAuth`,
+`requireFromAuth`, `getOrCreateFromAuth`, `retargetRows`), `./better-auth`
+(trusted origins and HTTPS cookie options for `@convex-dev/better-auth`) and
+`./mcp` (Convex functions as Model Context Protocol tools over Streamable HTTP;
+needs the optional peers `@modelcontextprotocol/sdk@^1.29.0` and `zod@^4.3.6`).
 
 ## For coding agents
 
-This package ships its docs: `node_modules/@vllnt/convex-helpers/docs/API.md`,
-`README.md`, `CHANGELOG.md` and this `llms.txt`. They match the installed version.
-Read them before writing code that uses this package. Type declarations are in
-`dist/` and the TypeScript source is in `src/`.
+Docs for the installed version ship in the package: `README.md`, `docs/API.md`,
+`CHANGELOG.md` and this `llms.txt`. Types are in `dist/`, source in `src/`.
 
-## Release channels
+## When to use
 
-On GitHub this index describes `main`; the copy in each npm version describes that
-version. `./better-auth`, `./identity`, `./builders` and `./validators` first ship in `0.2.0`; `0.1.0` has only the root utilities and `./mcp`. Prereleases are published
-to the `canary` dist-tag; pin and test them before deployment.
-MCP requires optional peers `@modelcontextprotocol/sdk@^1.29.0` and `zod@^4.3.6`;
-the package is ESM-only and requires `convex@^1.45.0`.
+- Use it for Convex function builders with shared `ctx` fields (`./builders`)
+  and runtime checks against `v.*` validators (`./validators`).
+- Use it to map the signed-in identity to a host user row (`./identity`).
+- Use it for `@convex-dev/better-auth` origins and cookies (`./better-auth`), or
+  to serve Convex functions as MCP tools over Streamable HTTP (`./mcp`).
+- Do not use it for state such as rate limits, idempotency or API keys: use a
+  `@convex-dev/*` or `@vllnt/convex-*` component.
+- Do not use it for relationships, RLS or triggers: use `convex-helpers`.
+
+## Limits
+
+- `./identity` needs a host-configured, non-empty `AuthCtx.trustedIssuer`; it
+  fails closed with `UNAUTHENTICATED` when missing, empty or mismatched.
+  `getOrCreateFromAuth` creates one row only when lookup and insert run in the
+  same mutation. `retargetRows` takes at most 1000 rows in sequence and is not
+  an account merge.
+- `./better-auth` checks origin syntax, not deployment ownership; SameSite=None
+  cookies are not CSRF protection. The host constructs `betterAuth(...)`.
+- `./builders` adds no authorization.
+- `./mcp`: resources run no lifecycle hooks; no body, stream or deadline caps;
+  auth and hook callbacks have a 10-second deadline; raw errors are not logged.
+- On GitHub this file describes `main`; the copy in each npm version describes
+  that version. `./better-auth`, `./identity`, `./builders` and `./validators`
+  first ship in 0.2.0. The `canary` dist-tag moves: pin the exact version.
 
 ## Docs
 
-- [README](./README.md): Project overview, installation, usage examples, and planned surface
-- [API Reference](./docs/API.md): Exported utilities, signatures, and compatibility
-- [Changelog](./CHANGELOG.md): Version history and release notes
-- [Notice](./NOTICE): Attribution for the convex-helpers behaviour and types these entries follow
-- [License](./LICENSE): MIT license
+- [API reference](./docs/API.md): every export with signatures and behavior
+- [Errors and fixes](./README.md#errors-and-fixes): every error text, its cause
+  and its fix
+- [README](./README.md): install, quick start, common tasks, limits and
+  compatibility
+- [Changelog](./CHANGELOG.md): version history
+- [Notice](./NOTICE): attribution for the convex-helpers behavior and types
+  these entries follow
+- [License](./LICENSE): MIT
 
 ## Optional
 
 Repository files, not in the npm package; they describe `main`.
 
-- [Roadmap](https://github.com/vllnt/convex-helpers/blob/main/ROADMAP.md): Planned modules and milestones
-- [Contributing](https://github.com/vllnt/convex-helpers/blob/main/CONTRIBUTING.md): Development setup, validation commands, and release workflow
-- [Security Policy](https://github.com/vllnt/convex-helpers/blob/main/SECURITY.md): Vulnerability reporting policy
-- [Code of Conduct](https://github.com/vllnt/convex-helpers/blob/main/CODE_OF_CONDUCT.md): Community participation guidelines
+- [Roadmap](https://github.com/vllnt/convex-helpers/blob/main/ROADMAP.md):
+  planned modules
+- [Contributing](https://github.com/vllnt/convex-helpers/blob/main/CONTRIBUTING.md):
+  development setup, checks and release workflow
+- [Security policy](https://github.com/vllnt/convex-helpers/blob/main/SECURITY.md):
+  vulnerability reporting
+- [Code of Conduct](https://github.com/vllnt/convex-helpers/blob/main/CODE_OF_CONDUCT.md):
+  community participation guidelines
 
 ## Ecosystem
 
-- [vllnt oss](https://oss.vllnt.com/llms.txt): Index of the vllnt open-source packages on npm
+- [Package page](https://oss.vllnt.com/packages/convex-helpers)
+- [Release feed](https://oss.vllnt.com/packages/convex-helpers/rss.xml)
+- [All @vllnt packages](https://oss.vllnt.com/llms.txt)
+- [Search vllnt packages and docs](https://index.vllnt.com)
+- [vllnt](https://vllnt.com/llms.txt)
+- [Author](https://bntvllnt.com)

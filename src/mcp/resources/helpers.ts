@@ -7,6 +7,14 @@ type ResourceOptions = {
   description?: string;
 };
 
+/**
+ * Exposes a Convex query as an MCP resource. Resources run no lifecycle hooks:
+ * authorize inside the query.
+ *
+ * @param ref - Convex query reference
+ * @param options - `args` validator for URI parameters, `description`
+ * @returns The resource definition to put in `ServerConfig.resources`
+ */
 export function resource(
   ref: unknown,
   options: ResourceOptions = {},

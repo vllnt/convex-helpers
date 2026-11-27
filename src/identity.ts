@@ -5,12 +5,14 @@
 
 import { ConvexError } from "convex/values";
 
+/** The identity fields these helpers read from `ctx.auth.getUserIdentity()`. */
 export type AuthIdentity = {
   isAnonymous?: unknown;
   issuer?: string;
   subject: string;
 };
 
+/** The context these helpers take: the host `ctx.auth` plus its trusted issuer. */
 export type AuthCtx = {
   auth: {
     getUserIdentity: () => Promise<AuthIdentity | null>;
@@ -24,6 +26,12 @@ export type AuthCtx = {
   trustedIssuer: string;
 };
 
+/**
+ * Tells whether an identity carries a literal `isAnonymous: true` claim.
+ *
+ * @param identity - An identity from `ctx.auth.getUserIdentity()`
+ * @returns `true` when the claim is the boolean `true`; `false` proves nothing
+ */
 export function isAnonymousIdentity(identity: AuthIdentity): boolean {
   return identity.isAnonymous === true;
 }
@@ -47,6 +55,14 @@ function assertTrustedIssuer(ctx: AuthCtx, identity: AuthIdentity): void {
   }
 }
 
+/**
+ * Returns the signed-in identity from the trusted issuer.
+ *
+ * @param ctx - `{ auth: ctx.auth, trustedIssuer }`
+ * @returns The identity
+ * @throws {ConvexError} `UNAUTHENTICATED` when signed out, when
+ *   `trustedIssuer` is unset or empty, or when the issuer differs
+ */
 export async function requireIdentity(ctx: AuthCtx): Promise<AuthIdentity> {
   assertTrustedIssuerConfigured(ctx);
   const identity = await ctx.auth.getUserIdentity();
@@ -77,6 +93,15 @@ export async function getFromAuth<T extends object>(
   return { ...row, isAnonymous: isAnonymousIdentity(identity) };
 }
 
+/**
+ * Like `getFromAuth`, but throws instead of returning `null`.
+ *
+ * @param ctx - `{ auth: ctx.auth, trustedIssuer }`
+ * @param lookup - Finds the host row for a subject
+ * @returns The row plus `isAnonymous`
+ * @throws {ConvexError} `USER_NOT_INITIALIZED` when signed out or the row
+ *   does not exist; `UNAUTHENTICATED` for an issuer problem
+ */
 export async function requireFromAuth<T extends object>(
   ctx: AuthCtx,
   lookup: (subject: string) => Promise<null | T>,

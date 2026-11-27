@@ -1,6 +1,8 @@
 /**
  * @module @vllnt/convex-helpers
  * Pure host-side helpers for Convex backends.
+ *
+ * @see https://oss.vllnt.com/packages/convex-helpers
  */
 
 /**
