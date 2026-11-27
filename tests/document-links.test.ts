@@ -48,6 +48,11 @@ describe("linkTargets", () => {
     const markdown = "```\ncode\n```bash\n[a](inside.md)\n```\n[b](after.md)";
     expect(linkTargets(markdown)).toStrictEqual(["after.md"]);
   });
+
+  it("closes a fence only with the same fence character", () => {
+    const markdown = "```\ncode\n```~\n[a](inside.md)\n```\n[b](after.md)";
+    expect(linkTargets(markdown)).toStrictEqual(["after.md"]);
+  });
 });
 
 describe("headingAnchors", () => {

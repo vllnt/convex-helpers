@@ -5,7 +5,7 @@
 
 // A closing fence carries no info string; an unclosed fence runs to the end.
 const fence =
-  /^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1[`~]*[ \t]*$|(?![\s\S]))/gmu;
+  /^ {0,3}(([`~])\2{2,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1\2*[ \t]*$|(?![\s\S]))/gmu;
 // A code span never crosses a blank line (the end of a paragraph).
 const codeSpan = /(`+)(?!`)(?:(?!\n[ \t]*\n)[\s\S])*?[^`]\1(?!`)/gu;
 

@@ -112,11 +112,31 @@ const outsideNames = new Set([
   "Record",
   "Request",
   "Response",
+  "Authorization",
   "Bearer",
   "Origin",
   "AppError",
   "RowLevelSecurity",
+  "Builder",
+  "Expected",
+  "Tool",
 ]);
+
+/**
+ * PascalCase names inside the code spans of `markdown` that read as type
+ * expressions (quoted strings dropped), e.g. `Promise<ToolDef> | undefined`.
+ */
+function codeTypeNames(markdown: string): string[] {
+  return [
+    ...markdown.replaceAll(/^```[\s\S]*?^```/gmu, "").matchAll(/`([^`\n]+)`/gu),
+  ].flatMap((match) => {
+    const code = (match[1] ?? "").replaceAll(/"[^"]*"|'[^']*'/gu, "");
+    if (!/^[\w<>[\]|,.()=>?:{} ]+$/u.test(code)) return [];
+    return [...code.matchAll(/\b[A-Z]\w+\b/gu)]
+      .map((name) => name[0])
+      .filter((name) => !/^[A-Z\d_]+$/u.test(name));
+  });
+}
 
 const publicNames = new Set(entries.flatMap((entry) => exportsOf(entry.file)));
 
@@ -171,11 +191,7 @@ describe("docs/API.md matches the package exports", () => {
   it.each(["docs/API.md", "README.md", "llms.txt"])(
     "%s names only real exports or known outside names in code",
     (file) => {
-      const named = [
-        ...read(file)
-          .replaceAll(/^```[\s\S]*?^```/gmu, "")
-          .matchAll(/`([A-Z][a-z]\w*)(?:<[^`]*>)?(?:\[\])?`/gu),
-      ].map((match) => match[1] ?? "");
+      const named = codeTypeNames(read(file));
       expect(
         [...new Set(named)].filter(
           (name) => !publicNames.has(name) && !outsideNames.has(name),
