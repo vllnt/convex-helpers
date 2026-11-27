@@ -2,9 +2,10 @@
 
 **Compatibility:** `convex@^1.45.0`; ESM-only.
 
-**Availability:** this reference follows current main. `./better-auth`,
-`./identity`, `./builders` and `./validators` first ship in `0.2.0`; `0.1.0` has
-only the root utilities and `./mcp`. See the
+**Availability:** on GitHub this reference describes `main`; the copy shipped at
+`node_modules/@vllnt/convex-helpers/docs/API.md` describes the installed
+version. `./better-auth`, `./identity`, `./builders` and `./validators` first
+ship in `0.2.0`; `0.1.0` has only the root utilities and `./mcp`. See the
 [installation guide](../README.md#installation). Planned modules are not
 exports.
 
@@ -146,13 +147,13 @@ per-instance secret. An `onResourceRead` hook is not provided.
 `query(ref, options)` / `mutation(ref, options)` / `action(ref, options)` wrap a
 Convex function reference as a typed `ToolDef`.
 
-| Option        | Type                     | Description                                                                                                                                                                       |
-| ------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `args`        | `ConvexValidator`        | A `v.object({...})` validator; converted to the tool's JSON-Schema input.                                                                                                         |
-| `description` | `string`                 | Human/LLM-facing tool description.                                                                                                                                                |
-| `tags`        | `Record<string, string>` | Arbitrary metadata.                                                                                                                                                               |
-| `timeout`     | `number`                 | Per-call timeout (ms, finite, 0 to 2147483647; 0 disables), supported only for queries. Mutation/action timeouts are rejected because their execution cannot be cancelled safely. |
-| `onError`     | `(ctx) => HookReturn`    | Per-tool error hook.                                                                                                                                                              |
+| Option        | Type                                                                                        | Description                                                                                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `args`        | `ConvexValidator`                                                                           | A `v.object({...})` validator; converted to the tool's JSON-Schema input.                                                                                                         |
+| `description` | `string`                                                                                    | Human/LLM-facing tool description.                                                                                                                                                |
+| `tags`        | `Record<string, string>`                                                                    | Arbitrary metadata.                                                                                                                                                               |
+| `timeout`     | `number`                                                                                    | Per-call timeout (ms, finite, 0 to 2147483647; 0 disables), supported only for queries. Mutation/action timeouts are rejected because their execution cannot be cancelled safely. |
+| `onError`     | `(ctx) => OnCallResult \| undefined \| Promise<OnCallResult \| undefined> \| Promise<void>` | Per-tool error hook.                                                                                                                                                              |
 
 ### resource(ref, options)
 
@@ -176,6 +177,14 @@ activates only when the client sends a cursor.
 | `twoPhaseDiscovery` | `boolean` | Enables the non-standard `tools/list_summary` + `tools/describe` methods (custom agents only). Default `false`. |
 
 Cursors are HMAC-signed per server instance and verified in constant time.
+
+### Exported types
+
+`AuthConfig`, `CallContext`, `ConvexClient`, `ConvexMCPServer` (the
+`{ handler() }` return of `createMCPServer`), `ConvexValidator`, `FunctionType`
+(`"query" | "mutation" | "action"`), `LifecycleHooks`, `OnCallResult`,
+`PaginationConfig`, `ResourceDef`, `ServerConfig`, `ToolDef`, `ToolPage` and
+`ToolSummary`.
 
 ### Validator utilities
 
@@ -227,6 +236,8 @@ you control. These are syntax helpers, not proof of ownership or CSRF
 protection. Returning undefined leaves host/provider defaults in effect; it is
 not a deny-all trusted-origin configuration.
 
+Exported type: `CookieSettings` (the return of `cookieSettingsForSite`).
+
 ```ts
 import {
   cookieSettingsForSite,
@@ -254,6 +265,8 @@ their own code. The host configures Better Auth and its anonymous plugin.
 | `requireFromAuth(ctx, lookup)`                 | Same row, or `USER_NOT_INITIALIZED` (also for missing session).                                                                                |
 | `getOrCreateFromAuth(ctx, { lookup, insert })` | Lookup then insert if absent; both callbacks receive subject.                                                                                  |
 | `retargetRows(rows, apply)`                    | At most 1000 rows, sequential callbacks returning `deleted`, `patched`, or `skipped`; returns counts. Oversized pages reject before callbacks. |
+
+Exported types: `AuthCtx` (`{ auth, trustedIssuer }`) and `AuthIdentity`.
 
 Race-safe bootstrap requires the same Convex mutation transaction for indexed
 lookup and insert, with every competing creator using that lookup. Remote calls
@@ -298,6 +311,7 @@ runs both on the same convex-test backend.
 | `customCtx(modifyCtx)`                    | Customization with no args: `modifyCtx(ctx, extra)` returns the ctx fields to add. `extra` holds the definition's keys other than `args`, `handler` and `returns`.                                                                  |
 | `Customization`                           | `{ args, input }`. `args` (property validators) are merged into the function's args and taken out of the handler's args; `input(ctx, consumedArgs, extra)` returns `{ ctx, args, onSuccess? }`. `onSuccess` runs after the handler. |
 | `CustomBuilder`, `CustomCtx<Builder>`     | Types of a custom builder and of the ctx its handlers receive.                                                                                                                                                                      |
+| `CustomInput`, `Registration`             | Types of the `input` callback's return and of a registered function.                                                                                                                                                                |
 
 Merging fails with an error when a consumed arg and a function arg share a name
 but not a validator kind, when the function's args validator is neither an
@@ -312,6 +326,9 @@ declares none. Builders add no authorization of their own.
 | `parse(validator, value)`              | Validates with unknown fields allowed, throws `ValidationError` on mismatch, and returns a copy without undeclared fields (through arrays, records and unions).                                 |
 | `doc(schema, tableName)`               | The table's validator plus `_id` and `_creationTime`; union tables get them on every member. Throws for other validator kinds.                                                                  |
 | `ValidationError`                      | Has `expected`, `got` and an optional `path`; the message names all three.                                                                                                                      |
+
+Exported types: `AnyValidator`, `ValidateOptions`, `SystemFields` and
+`AddFieldsToValidator`.
 
 Behaviour matches `convex-helpers/validators` 0.1.124 for these exports, held by
 a parity test, with two fail-closed differences:
@@ -329,7 +346,8 @@ value); messages are identical.
 ## Planned modules
 
 The following modules are on the roadmap but not yet shipped. See
-[ROADMAP.md](../ROADMAP.md) for milestones and exit criteria.
+[ROADMAP.md](https://github.com/vllnt/convex-helpers/blob/main/ROADMAP.md) (in
+the repository, not the package) for milestones and exit criteria.
 
 | Module            | Status                   | Description                                               |
 | ----------------- | ------------------------ | --------------------------------------------------------- |
