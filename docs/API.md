@@ -147,13 +147,13 @@ per-instance secret. An `onResourceRead` hook is not provided.
 `query(ref, options)` / `mutation(ref, options)` / `action(ref, options)` wrap a
 Convex function reference as a typed `ToolDef`.
 
-| Option        | Type                     | Description                                                                                                                                                                       |
-| ------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `args`        | `ConvexValidator`        | A `v.object({...})` validator; converted to the tool's JSON-Schema input.                                                                                                         |
-| `description` | `string`                 | Human/LLM-facing tool description.                                                                                                                                                |
-| `tags`        | `Record<string, string>` | Arbitrary metadata.                                                                                                                                                               |
-| `timeout`     | `number`                 | Per-call timeout (ms, finite, 0 to 2147483647; 0 disables), supported only for queries. Mutation/action timeouts are rejected because their execution cannot be cancelled safely. |
-| `onError`     | `(ctx) => HookReturn`    | Per-tool error hook.                                                                                                                                                              |
+| Option        | Type                                                                                        | Description                                                                                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `args`        | `ConvexValidator`                                                                           | A `v.object({...})` validator; converted to the tool's JSON-Schema input.                                                                                                         |
+| `description` | `string`                                                                                    | Human/LLM-facing tool description.                                                                                                                                                |
+| `tags`        | `Record<string, string>`                                                                    | Arbitrary metadata.                                                                                                                                                               |
+| `timeout`     | `number`                                                                                    | Per-call timeout (ms, finite, 0 to 2147483647; 0 disables), supported only for queries. Mutation/action timeouts are rejected because their execution cannot be cancelled safely. |
+| `onError`     | `(ctx) => OnCallResult \| undefined \| Promise<OnCallResult \| undefined> \| Promise<void>` | Per-tool error hook.                                                                                                                                                              |
 
 ### resource(ref, options)
 

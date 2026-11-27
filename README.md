@@ -21,7 +21,8 @@ host-`ctx` glue that run with the host's `ctx` — no own tables, no `app.use()`
 mounting. Stateful concerns (rate limiting, idempotency, flags) belong in
 `@convex-dev/*` or `@vllnt/convex-*` components.
 
-See [ROADMAP.md](./ROADMAP.md) for the planned module surface.
+See [ROADMAP.md](https://github.com/vllnt/convex-helpers/blob/main/ROADMAP.md)
+(in the repository) for the planned module surface.
 
 ## For coding agents
 
@@ -299,12 +300,13 @@ pnpm test:coverage   # must reach 100%
 
 Tests use [vitest](https://vitest.dev) with the node environment. 100% coverage
 is enforced via `vitest.config.mts` thresholds. Identity integration tests use
-**convex-test mocks**. Two retained local scripts run against a real anonymous
-Convex backend (no cloud account): `scripts/local-identity-proof.mjs` (16
-concurrent bootstrap mutations with a synthetic identity, one row; tests indexed
-OCC, not login) and `scripts/better-auth-proof.mjs` (real Better Auth sign-in,
-anonymous and email/password, then the issued JWTs sent to Convex functions that
-use `./identity` and `./better-auth`; see
+**convex-test mocks**. Two local scripts in the repository (not in the npm
+package) run against a real anonymous Convex backend (no cloud account):
+`scripts/local-identity-proof.mjs` (16 concurrent bootstrap mutations with a
+synthetic identity, one row; tests indexed OCC, not login) and
+`scripts/better-auth-proof.mjs` (real Better Auth sign-in, anonymous and
+email/password, then the issued JWTs sent to Convex functions that use
+`./identity` and `./better-auth`; see
 [docs/READINESS.md](https://github.com/vllnt/convex-helpers/blob/main/docs/READINESS.md#real-better-auth-loginjwt-proof)
 for versions and assertions). Consuming apps must verify their own auth
 integration independently.
@@ -313,14 +315,15 @@ integration independently.
 
 - [API reference](./docs/API.md) · [LLM index](./llms.txt) ·
   [Changelog](./CHANGELOG.md)
-- [Security policy and private reporting](./SECURITY.md)
+- [Security policy and private reporting](https://github.com/vllnt/convex-helpers/blob/main/SECURITY.md)
 - [Issues](https://github.com/vllnt/convex-helpers/issues) for non-sensitive
   bugs
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, code style, and
-PR guidelines.
+See
+[CONTRIBUTING.md](https://github.com/vllnt/convex-helpers/blob/main/CONTRIBUTING.md)
+for development setup, code style, and PR guidelines.
 
 ## Related packages
 

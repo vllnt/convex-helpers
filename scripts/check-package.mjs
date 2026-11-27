@@ -1,6 +1,7 @@
 // Fails when the npm tarball would miss the bundled docs coding agents read from
 // node_modules/@vllnt/convex-helpers/, would ship contributor or internal files,
-// or when a relative link in llms.txt points outside the tarball.
+// or when a relative link in a shipped doc points outside the tarball. Only inline
+// links without a title, the form these docs use, are checked.
 // Runs without a build, so dist/ is covered by check-package-contents.sh at publish.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -43,20 +44,24 @@ assert.deepEqual(
   `tarball ships internal file(s): ${leaked.join(", ")}`,
 );
 
-const llms = readFileSync(new URL("llms.txt", root), "utf8");
-const links = [...llms.matchAll(/\]\(([^)\s]+)\)/gu)].map((match) => match[1]);
-const relative = links.filter((href) => !/^[a-z][a-z\d+.-]*:/iu.test(href));
-assert.ok(relative.length > 0, "llms.txt: no relative links to shipped files");
-const unresolved = relative.filter((href) => {
-  const path = posix.normalize(href.split("#")[0]);
-  return !href.startsWith("./") || !packed.has(path);
-});
+const docs = ["llms.txt", "README.md", "docs/API.md"];
+const linksOf = (path) =>
+  [
+    ...readFileSync(new URL(path, root), "utf8").matchAll(/\]\(([^)\s]+)\)/gu),
+  ].map((match) => match[1]);
+const unresolved = docs.flatMap((doc) =>
+  linksOf(doc)
+    .filter((href) => !/^([a-z][a-z\d+.-]*:|#)/iu.test(href))
+    .map((href) => posix.join(posix.dirname(doc), href.split("#")[0]))
+    .filter((path) => !packed.has(path))
+    .map((path) => `${doc} -> ${path}`),
+);
 assert.deepEqual(
   unresolved,
   [],
-  `llms.txt: relative link(s) not in the tarball: ${unresolved.join(", ")}`,
+  `relative doc link(s) not in the tarball: ${unresolved.join(", ")}`,
 );
-const mainLinks = links.filter((href) =>
+const mainLinks = linksOf("llms.txt").filter((href) =>
   /github\.com\/[^)]*\/blob\/main\/(README\.md|CHANGELOG\.md|NOTICE|LICENSE|docs\/)/u.test(
     href,
   ),
@@ -68,5 +73,5 @@ assert.deepEqual(
 );
 
 console.log(
-  `OK    package docs: ${required.length} required file(s), ${relative.length} llms.txt link(s) resolve`,
+  `OK    package docs: ${required.length} required file(s); relative links in ${docs.join(", ")} resolve`,
 );
