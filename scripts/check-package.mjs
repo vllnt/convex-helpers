@@ -1,12 +1,18 @@
 // Fails when the npm tarball would miss the bundled docs coding agents read from
 // node_modules/@vllnt/convex-helpers/, would ship contributor or internal files,
-// or when a relative link in a shipped doc points outside the tarball. Only inline
-// links without a title, the form these docs use, are checked.
+// when a relative link or #anchor in a shipped doc does not resolve inside the
+// tarball, or when a shipped file names a repository file that is not packed.
 // Runs without a build, so dist/ is covered by check-package-contents.sh at publish.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { posix } from "node:path";
+
+import {
+  brokenLinks,
+  linkTargets,
+  repoOnlyMentions,
+} from "./document-links.mjs";
 
 const root = new URL("..", import.meta.url);
 const [pack] = JSON.parse(
@@ -44,24 +50,40 @@ assert.deepEqual(
   `tarball ships internal file(s): ${leaked.join(", ")}`,
 );
 
-const docs = ["llms.txt", "README.md", "docs/API.md"];
-const linksOf = (path) =>
-  [
-    ...readFileSync(new URL(path, root), "utf8").matchAll(/\]\(([^)\s]+)\)/gu),
-  ].map((match) => match[1]);
-const unresolved = docs.flatMap((doc) =>
-  linksOf(doc)
-    .filter((href) => !/^([a-z][a-z\d+.-]*:|#)/iu.test(href))
-    .map((href) => posix.join(posix.dirname(doc), href.split("#")[0]))
-    .filter((path) => !packed.has(path))
-    .map((path) => `${doc} -> ${path}`),
+const read = (path) => readFileSync(new URL(path, root), "utf8");
+const docs = new Map(
+  [...packed]
+    .filter((path) => /\.md$|^llms\.txt$/u.test(path))
+    .sort()
+    .map((path) => [path, read(path)]),
 );
+const unresolved = brokenLinks(docs, packed, posix);
 assert.deepEqual(
   unresolved,
   [],
   `relative doc link(s) not in the tarball: ${unresolved.join(", ")}`,
 );
-const mainLinks = linksOf("llms.txt").filter((href) =>
+
+const repoOnly = execFileSync("git", ["ls-files"], {
+  cwd: root,
+  encoding: "utf8",
+})
+  .split("\n")
+  .filter((path) => path !== "" && !packed.has(path));
+const textFiles = [...packed].filter((path) =>
+  /\.(md|txt|ts)$|^NOTICE$/u.test(path),
+);
+const named = textFiles.flatMap((path) =>
+  repoOnlyMentions(read(path), repoOnly).map(
+    (mention) => `${path} -> ${mention}`,
+  ),
+);
+assert.deepEqual(
+  named,
+  [],
+  `shipped file(s) name repository-only files (link them on GitHub instead): ${named.join(", ")}`,
+);
+const mainLinks = linkTargets(docs.get("llms.txt")).filter((href) =>
   /github\.com\/[^)]*\/blob\/main\/(README\.md|CHANGELOG\.md|NOTICE|LICENSE|docs\/)/u.test(
     href,
   ),
@@ -73,5 +95,5 @@ assert.deepEqual(
 );
 
 console.log(
-  `OK    package docs: ${required.length} required file(s); relative links in ${docs.join(", ")} resolve`,
+  `OK    package docs: ${required.length} required file(s); links in ${[...docs.keys()].join(", ")} resolve; ${textFiles.length} shipped text file(s) name no repo-only file`,
 );

@@ -165,7 +165,7 @@ authorize inside the backing function. JSON `int64` strings become `bigint`,
 base64 `bytes` strings become `ArrayBuffer`, and native Convex results use
 Convex's lossless tagged JSON encoding.
 
-### Pagination
+### Tool-list pagination
 
 `PaginationConfig` opts `tools/list` into cursor pagination. `tools/list`
 **without** a cursor always returns ALL tools (backward-compatible); pagination
@@ -265,6 +265,7 @@ their own code. The host configures Better Auth and its anonymous plugin.
 | `requireFromAuth(ctx, lookup)`                 | Same row, or `USER_NOT_INITIALIZED` (also for missing session).                                                                                |
 | `getOrCreateFromAuth(ctx, { lookup, insert })` | Lookup then insert if absent; both callbacks receive subject.                                                                                  |
 | `retargetRows(rows, apply)`                    | At most 1000 rows, sequential callbacks returning `deleted`, `patched`, or `skipped`; returns counts. Oversized pages reject before callbacks. |
+| `isAnonymousIdentity(identity)`                | `true` only for a literal boolean `isAnonymous: true` claim.                                                                                   |
 
 Exported types: `AuthCtx` (`{ auth, trustedIssuer }`) and `AuthIdentity`.
 
@@ -300,7 +301,7 @@ const user = await getOrCreateFromAuth(ctx, {
 
 Wrap a Convex function builder so every function made with it receives extra
 `ctx` fields and, optionally, consumes extra args. Signatures and runtime
-behaviour match `convex-helpers/server/customFunctions` 0.1.124; a parity test
+behaviour match `convex-helpers/server/customFunctions` 0.1.136; a parity test
 runs both on the same convex-test backend.
 
 | Export                                    | Contract                                                                                                                                                                                                                            |
@@ -330,15 +331,14 @@ declares none. Builders add no authorization of their own.
 Exported types: `AnyValidator`, `ValidateOptions`, `SystemFields` and
 `AddFieldsToValidator`.
 
-Behaviour matches `convex-helpers/validators` 0.1.124 for these exports, held by
-a parity test, with two fail-closed differences:
-
-- Declared object fields are looked up as own properties. Upstream also treats
-  inherited names (`constructor`, `toString`, `__proto__`) as declared, so it
-  accepts and keeps them; here they are unknown fields (rejected by a strict
-  `validate`, dropped by `parse`).
-- The `db` option (checking a `v.id`'s table) is refused with an error instead
-  of supported; `v.id` checks for a string.
+Behaviour matches `convex-helpers/validators` 0.1.136 for these exports, held by
+a parity test. Declared object fields are looked up as own properties, so
+inherited names (`constructor`, `toString`, `__proto__`) are unknown fields
+(rejected by a strict `validate`, dropped by `parse`). Records accept only plain
+objects: arrays and class instances such as `Date` or `Map` fail with
+`` Expected `record` ``. One fail-closed difference: the `db` option (checking a
+`v.id`'s table) is refused with an error instead of supported; `v.id` checks for
+a string.
 
 `ValidationError.expected` is always a string (upstream passes a literal's raw
 value); messages are identical.

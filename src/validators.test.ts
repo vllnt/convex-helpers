@@ -102,6 +102,22 @@ const corpus: [string, AnyValidator, unknown][] = [
     { c: 1 },
   ],
   ["record not object", v.record(v.string(), v.number()), null],
+  ["record array", v.record(v.string(), v.number()), [1, 2]],
+  ["record empty array", v.record(v.string(), v.number()), []],
+  ["record Date", v.record(v.string(), v.number()), new Date(0)],
+  ["record Map", v.record(v.string(), v.number()), new Map([["a", 1]])],
+  ["record class instance", v.record(v.string(), v.number()), new Point()],
+  ["record nameless prototype", v.record(v.string(), v.number()), nameless],
+  [
+    "record null prototype",
+    v.record(v.string(), v.number()),
+    Object.assign(Object.create(null) as object, { a: 1 }),
+  ],
+  [
+    "record other realm",
+    v.record(v.string(), v.number()),
+    runInNewContext("({ a: 1 })") as unknown,
+  ],
   ["unknown kind", futureKind, 1],
   // eslint-disable-next-line no-sparse-arrays -- a hole must fail like `undefined`
   ["sparse array", v.array(v.string()), [, "a"]],
@@ -141,7 +157,7 @@ function run(fn: () => unknown): unknown {
   }
 }
 
-describe("validators parity with convex-helpers 0.1.124", () => {
+describe("validators parity with convex-helpers 0.1.136", () => {
   it.each(corpus)("%s", (_name, validator, value) => {
     const compare = (options?: ValidateOptions) => {
       expect(run(() => ours.validate(validator, value, options))).toStrictEqual(
@@ -205,10 +221,22 @@ describe("validators parity with convex-helpers 0.1.124", () => {
     ).toStrictEqual({ u: { name: "n", tags: ["t"] } });
   });
 
-  it("treats inherited names as unknown fields, unlike upstream", () => {
+  it("rejects arrays and class instances for records", () => {
+    const counts = v.record(v.string(), v.number());
+    expect(ours.validate(counts, [1, 2])).toBe(false);
+    expect(ours.validate(counts, new Date(0))).toBe(false);
+    expect(() => ours.parse(counts, [1, 2])).toThrow(
+      "Validator error: Expected `record`, got `Array`",
+    );
+    expect(() => ours.validate(counts, new Map(), { throw: true })).toThrow(
+      "Validator error: Expected `record`, got `Map`",
+    );
+  });
+
+  it("treats inherited names as unknown fields", () => {
     const named = v.object({ a: v.string() });
     const withConstructor = { a: "x", constructor: 1 };
-    expect(theirs.validate(named, withConstructor)).toBe(true);
+    expect(theirs.validate(named, withConstructor)).toBe(false);
     expect(ours.validate(named, withConstructor)).toBe(false);
     const polluted = JSON.parse(
       '{"a":"x","__proto__":{"polluted":1}}',

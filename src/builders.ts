@@ -4,13 +4,13 @@
  * with them gets extra `ctx` fields (and optionally consumes extra args), e.g.
  * an authenticated user resolved once in a shared `input`.
  *
- * Adapted, with changes, from `convex-helpers/server/customFunctions` 0.1.124
+ * Adapted, with changes, from `convex-helpers/server/customFunctions` 0.1.136
  * (Apache-2.0, see NOTICE): same signatures and runtime behaviour for
  * `customQuery`, `customMutation`, `customAction` and `customCtx`; the
  * `CustomBuilder`, `Customization` and `Registration` types follow upstream's.
  * Unlike upstream, a customization must supply both `args` and `input` (the
- * types already require them). `tests/builders-parity.test.ts`
- * runs both side by side.
+ * types already require them). The repository's parity tests run both side
+ * by side.
  */
 
 import type {

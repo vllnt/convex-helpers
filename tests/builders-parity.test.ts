@@ -51,7 +51,7 @@ async function bothWays(
   return { ours: await run("ours"), theirs: await run("theirs") };
 }
 
-describe("builders parity with convex-helpers 0.1.124 (convex-test)", () => {
+describe("builders parity with convex-helpers 0.1.136 (convex-test)", () => {
   it("customCtx adds ctx fields with and without an identity", async () => {
     const { ours, theirs } = await bothWays(async (t, fns) => ({
       anonymous: await t.query(fns.subject, { prefix: "p:" }),

@@ -3,13 +3,12 @@
  * Runtime checks against Convex validators, and whole-document validators
  * for schema tables.
  *
- * Adapted, with changes, from `convex-helpers/validators` 0.1.124
- * (Apache-2.0, see NOTICE): same behaviour for these functions, which
- * `src/validators.test.ts` checks side by side, plus two fail-closed
- * differences. Declared object fields must be own properties (upstream also
- * treats inherited names such as `constructor` as declared), and the runtime
- * check throws on the `db` option, which checks a `v.id`'s table, instead of
- * supporting it. The `AddFieldsToValidator` type follows upstream's.
+ * Adapted, with changes, from `convex-helpers/validators` 0.1.136
+ * (Apache-2.0, see NOTICE): same behaviour for these functions, which the
+ * repository's parity tests check side by side, plus one fail-closed
+ * difference: the runtime check throws on the `db` option, which checks a
+ * `v.id`'s table, instead of supporting it. The `AddFieldsToValidator` type
+ * follows upstream's.
  */
 
 import type {
@@ -220,6 +219,10 @@ const checkUnion: Checker<"union"> = (validator, value, walk) => {
 const checkRecord: Checker<"record"> = (validator, value, walk) => {
   if (typeof value !== "object" || value === null)
     return { expected: "record" };
+  // Arrays and class instances (Date, Map, ...) are not records, as in Convex.
+  // For a record, the non-plain object's constructor name is what it got.
+  const notPlain = plainObjectFailure(value);
+  if (notPlain) return { expected: "record", got: notPlain.expected };
   const keyValidator: AnyValidator = validator.key;
   const entryValidator: AnyValidator = validator.value;
   return firstFailure(Object.entries(value), ([key, entry]) => {

@@ -1,9 +1,12 @@
 # Publication remediation evidence
 
-Status: **not publication-ready**: an independent review is done (2026-10-31, no
-critical or high findings) and its fixes are applied, and the real Better Auth
-login/JWT proof now passes locally (2026-11-03, see below). Publication still
-needs the maintainer's release decision.
+Status: **0.2.1 prepared, not released** (2026-11-27): `package.json` and
+`CHANGELOG.md` carry 0.2.1 from the commit that merges the 0.2.1 preparation
+into `main`. The remaining step is the maintainer's: push the tag `v0.2.1` on
+that `main` commit (see CONTRIBUTING.md, Releases).
+Earlier evidence: an independent review (2026-10-31, no critical or high
+findings) with its fixes applied, and the real Better Auth login/JWT proof
+passing locally (2026-11-03, see below).
 
 ## Repairs and checks
 

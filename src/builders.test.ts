@@ -30,7 +30,7 @@ function outcome(run: () => unknown): unknown {
 
 const implementations = { ours, theirs: theirs as unknown as typeof ours };
 
-describe("builders argument merging (parity with convex-helpers 0.1.124)", () => {
+describe("builders argument merging (parity with convex-helpers 0.1.136)", () => {
   const cases: [string, (impl: typeof ours) => unknown][] = [
     [
       "different kinds",
@@ -134,7 +134,7 @@ describe("builders argument merging (parity with convex-helpers 0.1.124)", () =>
   });
 });
 
-describe("builders types (parity with convex-helpers 0.1.124)", () => {
+describe("builders types (parity with convex-helpers 0.1.136)", () => {
   const user = { id: "u" };
 
   it("{ args: {}, input } adds ctx fields", () => {
