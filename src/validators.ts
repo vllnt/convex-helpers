@@ -186,8 +186,13 @@ const checkObject: Checker<"object"> = (validator, value, walk) => {
   if (notPlain) return notPlain;
   const record = value as Record<string, unknown>;
   const fields: Record<string, AnyValidator> = validator.fields;
+  // Read each declared field from the object's own properties, as
+  // convex-helpers does: an inherited value (`constructor`, ...) is absent.
   const fieldFailure = firstFailure(Object.entries(fields), ([key, field]) =>
-    walkValue(field, record[key], { ...walk, path: joinPath(walk.path, key) })
+    walkValue(field, Object.hasOwn(record, key) ? record[key] : undefined, {
+      ...walk,
+      path: joinPath(walk.path, key),
+    })
       ? undefined
       : { expected: "object" },
   );

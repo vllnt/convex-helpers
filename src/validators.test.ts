@@ -84,6 +84,31 @@ const corpus: [string, AnyValidator, unknown][] = [
     runInNewContext("({ x: 1 })") as unknown,
   ],
   [
+    "object optional field named constructor, absent",
+    v.object({ constructor: v.optional(v.string()) }),
+    JSON.parse("{}") as unknown,
+  ],
+  [
+    "object optional field named toString, absent",
+    v.object({ toString: v.optional(v.string()) }),
+    {},
+  ],
+  [
+    "object required field named toString, absent",
+    v.object({ toString: v.any() }),
+    {},
+  ],
+  [
+    "object optional field named __proto__, absent",
+    v.object({ ["__proto__"]: v.optional(v.string()) }),
+    {},
+  ],
+  [
+    "object inherited declared field",
+    v.object({ name: v.string() }),
+    Object.create({ name: "x" }) as unknown,
+  ],
+  [
     "object deep path",
     v.object({ a: v.object({ b: v.array(v.object({ c: v.string() })) }) }),
     { a: { b: [{ c: 1 }] } },
@@ -245,6 +270,21 @@ describe("validators parity with convex-helpers 0.1.136", () => {
     expect(parsed).toStrictEqual({ a: "x" });
     expect(Object.hasOwn(parsed, "__proto__")).toBe(false);
     expect((parsed as { polluted?: unknown }).polluted).toBeUndefined();
+  });
+
+  it("reads declared fields as own properties only", () => {
+    const named = v.object({ constructor: v.optional(v.string()) });
+    const empty = JSON.parse("{}") as unknown;
+    expect(ours.validate(named, empty)).toBe(true);
+    expect(ours.parse(named, empty)).toStrictEqual({});
+    expect(ours.validate(v.object({ toString: v.any() }), {})).toBe(false);
+    const inherited = Object.create({ name: "x" }) as unknown;
+    expect(ours.validate(v.object({ name: v.string() }), inherited)).toBe(
+      false,
+    );
+    expect(() => ours.parse(v.object({ name: v.string() }), inherited)).toThrow(
+      "Validator error for name: Expected `string`, got `undefined`",
+    );
   });
 
   it("refuses the unsupported db option", () => {

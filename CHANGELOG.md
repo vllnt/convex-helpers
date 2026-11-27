@@ -16,6 +16,10 @@ and this project adheres to
   (`Date`, `Map`, ...) for `v.record(...)` validators, as Convex and
   `convex-helpers` 0.1.136 do. They were accepted, and `parse` turned an array
   into an object. The error reads `` Expected `record`, got `Array` ``.
+- `./validators` reads declared object fields as own properties only, as
+  `convex-helpers` 0.1.136 does. An inherited value no longer satisfies a
+  declared field, and an absent optional field named like an `Object.prototype`
+  member (`constructor`, `toString`) is no longer read from the prototype.
 - Shipped docs and source comments no longer name repository-only files (proof
   scripts, tests, the vitest config, maintainer publication notes) without a
   GitHub link.
