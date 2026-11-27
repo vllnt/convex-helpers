@@ -8,6 +8,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-27
+
+### Fixed
+
+- `./validators`: `validate` and `parse` reject arrays and class instances
+  (`Date`, `Map`, ...) for `v.record(...)` validators, as Convex and
+  `convex-helpers` 0.1.130+ do. They were accepted, and `parse` turned an array
+  into an object. The error reads `` Expected `record`, got `Array` ``.
+- Shipped docs and source comments no longer name repository-only files (proof
+  scripts, tests, the vitest config, maintainer publication notes) without a
+  GitHub link.
+
 ### Added
 
 - The npm package now states that its bundled docs (`docs/API.md`, `README.md`,
@@ -16,13 +28,24 @@ and this project adheres to
   files, an Ecosystem link and a Related packages section. `docs/API.md` now
   lists the exported types of each entry.
 - `pnpm check:package` (run by `pnpm lint`) fails when the tarball misses a
-  required doc file, ships contributor or internal files, or when a relative
-  `llms.txt` link does not resolve inside it.
+  required doc file or ships contributor or internal files; when a relative link
+  or `#anchor` in any shipped Markdown doc does not resolve inside it (inline
+  links with or without a title, reference definitions and HTML `href`/`src`;
+  code is ignored); or when a shipped file names a repository file that is not
+  packed. A test keeps `docs/API.md` in step with every entry's exports and
+  checks that the docs name no internal type.
 
 ### Changed
 
-- The tarball no longer ships `docs/READINESS.md` (maintainer publication
-  notes). `homepage` is now https://oss.vllnt.com/packages/convex-helpers.
+- `./builders` and `./validators` parity baseline is now `convex-helpers`
+  0.1.136 (`customFunctions` is unchanged since 0.1.124). Upstream now also
+  treats inherited names such as `constructor` as unknown object fields, so that
+  is no longer a difference; the `db` option remains refused.
+
+- The tarball no longer ships
+  [`docs/READINESS.md`](https://github.com/vllnt/convex-helpers/blob/main/docs/READINESS.md)
+  (maintainer publication notes). `homepage` is now
+  https://oss.vllnt.com/packages/convex-helpers.
 - Tooling: every push to `main` touching the package publishes a canary (no
   repository-variable gate), and docs-only changes now trigger it.
 - Development dependencies: `convex` 1.51.0, `convex-test` 0.0.73, `vitest` and
@@ -52,7 +75,8 @@ and this project adheres to
 - Reject MCP query `timeout` values that are negative, `NaN`, infinite or above
   2147483647 ms; they previously fired immediately and failed the call.
 - Patch development Handlebars, Vite/esbuild and deepmerge-ts advisory paths;
-  document the remaining minimatch tooling advisory in `docs/READINESS.md`.
+  document the remaining minimatch tooling advisory in
+  [`docs/READINESS.md`](https://github.com/vllnt/convex-helpers/blob/main/docs/READINESS.md).
 
 - Convert MCP `int64` and `bytes` inputs to native Convex values and serialize
   native Convex results with lossless tagged JSON.
@@ -81,10 +105,11 @@ and this project adheres to
 
 ### Added
 
-- `scripts/better-auth-proof.mjs`: local, cloud-free proof that real Better Auth
-  sessions (anonymous plugin and email/password) issue JWTs whose issuer,
-  subject and anonymous claims `./identity` accepts on a real Convex backend,
-  and that tampered, foreign-issuer and expired tokens are rejected.
+- [`scripts/better-auth-proof.mjs`](https://github.com/vllnt/convex-helpers/blob/main/scripts/better-auth-proof.mjs)
+  (repository only): local, cloud-free proof that real Better Auth sessions
+  (anonymous plugin and email/password) issue JWTs whose issuer, subject and
+  anonymous claims `./identity` accepts on a real Convex backend, and that
+  tampered, foreign-issuer and expired tokens are rejected.
 - `./builders` — `customQuery` / `customMutation` / `customAction` / `customCtx`
   with the signatures and runtime behaviour of
   `convex-helpers/server/customFunctions` 0.1.124, held by a convex-test parity

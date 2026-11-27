@@ -2,7 +2,7 @@
 Copyright (c) 2026 bntvllnt. Licensed under the MIT License (see LICENSE).
 
 The ./builders and ./validators entry points follow the public API, runtime
-behaviour and type signatures of convex-helpers 0.1.124
+behaviour and type signatures of convex-helpers 0.1.136
 (https://github.com/get-convex/convex-helpers), Copyright Convex, Inc.,
 licensed under the Apache License, Version 2.0, reproduced below. The
 implementation in src/builders.ts and src/validators.ts was written for this

@@ -35,8 +35,8 @@ importers:
         specifier: ^1.51.0
         version: 1.51.0
       convex-helpers:
-        specifier: 0.1.124
-        version: 0.1.124(@typescript/typescript6@6.0.2)(convex@1.51.0)(hono@4.13.19)(zod@4.6.7)
+        specifier: 0.1.136
+        version: 0.1.136(@typescript/typescript6@6.0.2)(convex@1.51.0)(hono@4.13.19)(prettier@3.10.1)(zod@4.6.7)
       convex-test:
         specifier: ^0.0.73
         version: 0.0.73(convex@1.51.0)
@@ -1308,13 +1308,14 @@ packages:
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
 
-  convex-helpers@0.1.124:
-    resolution: {integrity: sha512-Gbu/jq6I3x5Y51cXP5c7+CI3t15vX5Xi2G0tOym3rxpBtYqrI+qWwxkqZgJYrHHccY42wZudB8h6kS3fak8Aeg==}
+  convex-helpers@0.1.136:
+    resolution: {integrity: sha512-GoveeoUdEyg0hpCNNAjAimgn4P3mx7f8Yy5oSISck9AquxfL3NbtQesUwhZLrDkCWasK2i1COjb7ZjQseonovA==}
     hasBin: true
     peerDependencies:
       '@standard-schema/spec': ^1.0.0
-      convex: ^1.43.0
+      convex: ^1.46.0
       hono: ^4.0.5
+      prettier: ^3.0.0
       react: ^17.0.2 || ^18.0.0 || ^19.0.0
       typescript: ^5.5 || ^6.0.0 || ^7.0.0
       zod: ^3.25.0 || ^4.0.0
@@ -1322,6 +1323,8 @@ packages:
       '@standard-schema/spec':
         optional: true
       hono:
+        optional: true
+      prettier:
         optional: true
       react:
         optional: true
@@ -4065,11 +4068,12 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
-  convex-helpers@0.1.124(@typescript/typescript6@6.0.2)(convex@1.51.0)(hono@4.13.19)(zod@4.6.7):
+  convex-helpers@0.1.136(@typescript/typescript6@6.0.2)(convex@1.51.0)(hono@4.13.19)(prettier@3.10.1)(zod@4.6.7):
     dependencies:
       convex: 1.51.0
     optionalDependencies:
       hono: 4.13.19
+      prettier: 3.10.1
       typescript: '@typescript/typescript6@6.0.2'
       zod: 4.6.7
 

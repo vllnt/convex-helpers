@@ -1,6 +1,6 @@
 {
   "name": "@vllnt/convex-helpers",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Typed Convex host-side utilities, trusted-origin and cookie configuration helpers, identity-row glue, and optional MCP tools.",
   "license": "MIT",
   "type": "module",
@@ -80,7 +80,7 @@
     "@vllnt/eslint-config": "2.1.0",
     "@vllnt/typescript": "3.0.0",
     "convex": "^1.51.0",
-    "convex-helpers": "0.1.124",
+    "convex-helpers": "0.1.136",
     "convex-test": "^0.0.73",
     "eslint": "^9.39.5",
     "prettier": "^3.10.1",

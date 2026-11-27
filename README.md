@@ -182,7 +182,7 @@ cross-site cookies.
 ### Custom functions — `./builders`
 
 Resolve shared context once for every function made with a builder. The
-signatures match `convex-helpers/server/customFunctions` (0.1.124), so switching
+signatures match `convex-helpers/server/customFunctions` (0.1.136), so switching
 is an import-path change.
 
 ```ts
@@ -231,8 +231,8 @@ const userDoc = doc(schema, "users"); // table validator + _id + _creationTime
 The `db` option of `convex-helpers` (checking which table a `v.id` belongs to)
 is refused; `v.id` checks that the value is a string. Object fields are matched
 as own properties, so inherited names such as `constructor` count as unknown
-fields (upstream accepts them). See
-[docs/API.md](docs/API.md#validators-shipped).
+fields, and records reject arrays and class instances such as `Date` or `Map`.
+See [docs/API.md](docs/API.md#validators-shipped).
 
 ### Identity — `./identity`
 
@@ -299,14 +299,16 @@ pnpm test:coverage   # must reach 100%
 ```
 
 Tests use [vitest](https://vitest.dev) with the node environment. 100% coverage
-is enforced via `vitest.config.mts` thresholds. Identity integration tests use
-**convex-test mocks**. Two local scripts in the repository (not in the npm
-package) run against a real anonymous Convex backend (no cloud account):
-`scripts/local-identity-proof.mjs` (16 concurrent bootstrap mutations with a
-synthetic identity, one row; tests indexed OCC, not login) and
-`scripts/better-auth-proof.mjs` (real Better Auth sign-in, anonymous and
-email/password, then the issued JWTs sent to Convex functions that use
-`./identity` and `./better-auth`; see
+is enforced via the repository's vitest coverage thresholds. Identity
+integration tests use **convex-test mocks**. Two local scripts in the repository
+(not in the npm package) run against a real anonymous Convex backend (no cloud
+account):
+[`scripts/local-identity-proof.mjs`](https://github.com/vllnt/convex-helpers/blob/main/scripts/local-identity-proof.mjs)
+(16 concurrent bootstrap mutations with a synthetic identity, one row; tests
+indexed OCC, not login) and
+[`scripts/better-auth-proof.mjs`](https://github.com/vllnt/convex-helpers/blob/main/scripts/better-auth-proof.mjs)
+(real Better Auth sign-in, anonymous and email/password, then the issued JWTs
+sent to Convex functions that use `./identity` and `./better-auth`; see
 [docs/READINESS.md](https://github.com/vllnt/convex-helpers/blob/main/docs/READINESS.md#real-better-auth-loginjwt-proof)
 for versions and assertions). Consuming apps must verify their own auth
 integration independently.
