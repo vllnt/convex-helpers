@@ -6,8 +6,8 @@ behaviour and type signatures of convex-helpers 0.1.136
 (https://github.com/get-convex/convex-helpers), Copyright Convex, Inc.,
 licensed under the Apache License, Version 2.0, reproduced below. The
 implementation in src/builders.ts and src/validators.ts was written for this
-package; the CustomBuilder, Customization and AddFieldsToValidator types are
-adapted from convex-helpers.
+package; the CustomBuilder, CustomCtx, Customization, Registration and
+AddFieldsToValidator types are adapted from convex-helpers.
 
 --------------------------------------------------------------------------------
 

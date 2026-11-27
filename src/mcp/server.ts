@@ -41,8 +41,8 @@ function addRequestId(response: Response, requestId: string): Response {
  * @param config - Auth is required; see `ServerConfig`
  * @returns `{ handler() }`, whose `GET` and `POST` take a Web `Request`
  * @throws {Error} Without `auth.validate`, with both `client` and
- *   `auth.convexToken`, without a Convex URL, or with an invalid tool timeout
- *   or pagination page size
+ *   `auth.convexToken`, without a Convex URL, with an invalid tool timeout
+ *   or pagination page size, or when tool/resource `args` cannot be converted
  */
 export function createMCPServer(config: ServerConfig): ConvexMCPServer {
   if (!config.auth?.validate) {

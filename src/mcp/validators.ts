@@ -176,7 +176,8 @@ function convertKind(validator: ConvexValidator): z.ZodTypeAny {
  * Converts one Convex validator to a zod schema.
  *
  * @param validator - A Convex validator (`v.*`)
- * @returns The matching zod schema, optional when the validator is
+ * @returns The matching zod schema; it is optional when the validator is
+ *   optional
  * @throws {UnsupportedValidatorError} For kinds with no mapping
  */
 export function convertValidator(validator: ConvexValidator): z.ZodTypeAny {
@@ -193,6 +194,8 @@ export function convertValidator(validator: ConvexValidator): z.ZodTypeAny {
  * @param argumentsValidator - The function's `v.object({...})` args validator
  * @returns A zod object schema
  * @throws {Error} When the validator is not a `v.object()`
+ * @throws {UnsupportedValidatorError} When a field's validator kind has no
+ *   mapping
  */
 export function convexArgsToZod(
   argumentsValidator: ConvexValidator,

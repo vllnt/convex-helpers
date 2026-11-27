@@ -22,8 +22,15 @@ order.
 
 ```ts
 import { asyncMap } from "@vllnt/convex-helpers";
+import { v } from "convex/values";
 
-const docs = await asyncMap(ids, (id) => ctx.db.get(id));
+import { query } from "./_generated/server";
+
+export const getProjects = query({
+  args: { ids: v.array(v.id("projects")) },
+  handler: async (ctx, { ids }) =>
+    asyncMap(ids, (id) => ctx.db.get("projects", id)),
+});
 ```
 
 | Param  | Type                                     | Description           |
@@ -41,8 +48,15 @@ Filters null and undefined values from an array.
 
 ```ts
 import { asyncMap, pruneNull } from "@vllnt/convex-helpers";
+import { v } from "convex/values";
 
-const docs = pruneNull(await asyncMap(ids, (id) => ctx.db.get(id)));
+import { query } from "./_generated/server";
+
+export const getExistingProjects = query({
+  args: { ids: v.array(v.id("projects")) },
+  handler: async (ctx, { ids }) =>
+    pruneNull(await asyncMap(ids, (id) => ctx.db.get("projects", id))),
+});
 ```
 
 | Param  | Type                         | Description                                       |
@@ -60,8 +74,15 @@ it is.
 
 ```ts
 import { nullThrows } from "@vllnt/convex-helpers";
+import { v } from "convex/values";
 
-const doc = nullThrows(await ctx.db.get(id), `Document ${id} not found`);
+import { query } from "./_generated/server";
+
+export const getProject = query({
+  args: { id: v.id("projects") },
+  handler: async (ctx, { id }) =>
+    nullThrows(await ctx.db.get("projects", id), `Project ${id} not found`),
+});
 ```
 
 | Param     | Type                     | Description          |
@@ -80,15 +101,22 @@ const doc = nullThrows(await ctx.db.get(id), `Document ${id} not found`);
 Error thrown when a required document is null or undefined.
 
 ```ts
-import { NullDocumentError } from "@vllnt/convex-helpers";
+import { NullDocumentError, nullThrows } from "@vllnt/convex-helpers";
+import { v } from "convex/values";
 
-try {
-  const doc = nullThrows(await ctx.db.get(id));
-} catch (e) {
-  if (e instanceof NullDocumentError) {
-    // handle missing document
-  }
-}
+import { query } from "./_generated/server";
+
+export const projectName = query({
+  args: { id: v.id("projects") },
+  handler: async (ctx, { id }) => {
+    try {
+      return nullThrows(await ctx.db.get("projects", id)).name;
+    } catch (error) {
+      if (error instanceof NullDocumentError) return null;
+      throw error;
+    }
+  },
+});
 ```
 
 ## MCP tools (`./mcp`)
@@ -106,18 +134,25 @@ framework's route.
 
 ```ts
 import { createMCPServer, query } from "@vllnt/convex-helpers/mcp";
+import { v } from "convex/values";
 
-export const mcp = createMCPServer({
+import { api } from "@/convex/_generated/api";
+
+const mcp = createMCPServer({
   auth: { validate: async (key) => key === process.env.MCP_API_KEY },
   tools: {
-    list: query(api.tasks.list, {
+    list_projects: query(api.projects.list, {
       args: v.object({}),
-      description: "List tasks",
+      description: "List all projects",
     }),
   },
 });
+
 export const { GET, POST } = mcp.handler();
 ```
+
+This is a Next.js route file such as `app/api/mcp/route.ts`; the `@/convex/...`
+import assumes a `@/*` path alias to the project root.
 
 Security boundaries (host-owned): resources do not run `onToolCall`/`before`
 hooks (only tools do), so any valid bearer key reads every registered resource;
@@ -131,16 +166,16 @@ per-instance secret. An `onResourceRead` hook is not provided.
 
 `ServerConfig`:
 
-| Field             | Type                          | Description                                                                                                                                                                                 |
-| ----------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth`            | `AuthConfig`                  | **Required.** `validate(apiKey) => boolean` gates every request (default-deny — `createMCPServer` throws without it). Optional `convexToken(apiKey)` resolves a Convex auth token per call. |
-| `tools`           | `Record<string, ToolDef>`     | Named tools built with `query`/`mutation`/`action`.                                                                                                                                         |
-| `resources`       | `Record<string, ResourceDef>` | Named resources built with `resource`.                                                                                                                                                      |
-| `convexUrl`       | `string`                      | Convex deployment URL. Defaults to `CONVEX_URL` / `NEXT_PUBLIC_CONVEX_URL`.                                                                                                                 |
-| `client`          | `ConvexClient`                | Inject a client (e.g. `convex-test`'s `t`) instead of a URL. Mutually exclusive with `auth.convexToken`.                                                                                    |
-| `hooks`           | `LifecycleHooks`              | `onToolCall(ctx)` fires `before`/`success`/`error`; `before` may `abort` or inject server-side args via `extendArgs`.                                                                       |
-| `name`, `version` | `string`                      | Server identity advertised over MCP.                                                                                                                                                        |
-| `pagination`      | `PaginationConfig`            | Opt-in `tools/list` pagination — see below.                                                                                                                                                 |
+| Field             | Type                          | Description                                                                                                                                                                                                                               |
+| ----------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth`            | `AuthConfig`                  | **Required.** `validate(apiKey) => boolean` gates every request (default-deny — `createMCPServer` throws without it). Optional `convexToken(apiKey)` resolves a Convex auth token once per HTTP request, used only by the default client. |
+| `tools`           | `Record<string, ToolDef>`     | Named tools built with `query`/`mutation`/`action`.                                                                                                                                                                                       |
+| `resources`       | `Record<string, ResourceDef>` | Named resources built with `resource`.                                                                                                                                                                                                    |
+| `convexUrl`       | `string`                      | Convex deployment URL. Defaults to `CONVEX_URL` / `NEXT_PUBLIC_CONVEX_URL`.                                                                                                                                                               |
+| `client`          | `ConvexClient`                | Inject a client (e.g. `convex-test`'s `t`) instead of a URL. Mutually exclusive with `auth.convexToken`.                                                                                                                                  |
+| `hooks`           | `LifecycleHooks`              | `onToolCall(ctx)` fires `before`/`success`/`error`; `before` may `abort` or inject server-side args via `extendArgs`. When a tool sets `onError`, only `onError` runs in the error phase.                                                 |
+| `name`, `version` | `string`                      | Server identity advertised over MCP.                                                                                                                                                                                                      |
+| `pagination`      | `PaginationConfig`            | Opt-in `tools/list` pagination — see below.                                                                                                                                                                                               |
 
 ### query / mutation / action
 
@@ -153,11 +188,11 @@ Convex function reference as a typed `ToolDef`.
 | `description` | `string`                                                                                    | Human/LLM-facing tool description.                                                                                                                                                |
 | `tags`        | `Record<string, string>`                                                                    | Arbitrary metadata.                                                                                                                                                               |
 | `timeout`     | `number`                                                                                    | Per-call timeout (ms, finite, 0 to 2147483647; 0 disables), supported only for queries. Mutation/action timeouts are rejected because their execution cannot be cancelled safely. |
-| `onError`     | `(ctx) => OnCallResult \| undefined \| Promise<OnCallResult \| undefined> \| Promise<void>` | Per-tool error hook.                                                                                                                                                              |
+| `onError`     | `(ctx) => OnCallResult \| undefined \| Promise<OnCallResult \| undefined> \| Promise<void>` | Per-tool error hook; when set, it runs in the error phase instead of `onToolCall`.                                                                                                |
 
 ### resource(ref, options)
 
-Wraps a Convex function reference as an MCP resource
+Wraps a Convex query reference as an MCP resource
 (`{ args?, description? }`). URI parameters are parsed through `args` before
 dispatch. Parameter names starting with `_` are rejected before dispatch
 (reserved for server-injected context). Resources run no lifecycle hooks, so
@@ -196,12 +231,12 @@ Cursors are HMAC-signed per server instance and verified in constant time.
 
 ### Request behavior & error codes
 
-| Condition                                       | Response                                                                                                               |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Missing/malformed `Authorization: Bearer <key>` | `401` `{ error }`                                                                                                      |
-| `auth.validate` returns false                   | `401` `{ error: "Invalid API key." }`                                                                                  |
-| `POST` without `application/json`               | `415` JSON-RPC error `-32700`                                                                                          |
-| Convex execution failure                        | Generic message by default; hooks see the real error and may explicitly return a public message. No raw error logging. |
+| Condition                                                                 | Response                                                                                                               |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Missing/malformed `Authorization: Bearer <key>`                           | `401` `{ error }`                                                                                                      |
+| `auth.validate` returns false                                             | `401` `{ error: "Invalid API key." }`                                                                                  |
+| `POST` whose `Content-Type` lacks `application/json` (checked after auth) | `415` JSON-RPC error `-32700`                                                                                          |
+| Convex execution failure                                                  | Generic message by default; hooks see the real error and may explicitly return a public message. No raw error logging. |
 
 Auth and lifecycle callbacks have a 10-second deadline per callback. Thrown or
 stalled `before` hooks fail closed with `Tool call rejected`, without dispatch.
@@ -243,6 +278,16 @@ import {
   cookieSettingsForSite,
   trustedOriginsFromCsv,
 } from "@vllnt/convex-helpers/better-auth";
+
+const siteUrl = process.env.CONVEX_SITE_URL ?? "http://localhost:3211";
+
+export const originOptions = {
+  ...cookieSettingsForSite(siteUrl),
+  trustedOrigins: trustedOriginsFromCsv(
+    siteUrl,
+    process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "",
+  ),
+};
 ```
 
 ## `./identity` (shipped)
@@ -279,20 +324,31 @@ host owns observability; helpers do not log identity data or tokens. Tests are
 convex-test mock integration, not real Better Auth or backend OCC proof.
 
 ```ts
-import {
-  getOrCreateFromAuth,
-  retargetRows,
-} from "@vllnt/convex-helpers/identity";
+import { nullThrows } from "@vllnt/convex-helpers";
+import { getOrCreateFromAuth } from "@vllnt/convex-helpers/identity";
 
-const user = await getOrCreateFromAuth(ctx, {
-  lookup: (subject) =>
-    ctx.db
-      .query("users")
-      .withIndex("by_betterauth_id", (q) => q.eq("betterAuthId", subject))
-      .unique(),
-  insert: async (subject) => {
-    const id = await ctx.db.insert("users", { betterAuthId: subject });
-    return (await ctx.db.get(id))!;
+import { mutation } from "./_generated/server";
+
+const trustedIssuer = process.env.CONVEX_SITE_URL ?? "";
+
+export const ensureUser = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getOrCreateFromAuth(
+      { auth: ctx.auth, trustedIssuer },
+      {
+        insert: async (subject) => {
+          const id = await ctx.db.insert("users", { subject });
+          return nullThrows(await ctx.db.get("users", id));
+        },
+        lookup: (subject) =>
+          ctx.db
+            .query("users")
+            .withIndex("by_subject", (q) => q.eq("subject", subject))
+            .unique(),
+      },
+    );
+    return user._id;
   },
 });
 ```
@@ -314,19 +370,19 @@ runs both on the same convex-test backend.
 | `CustomBuilder`, `CustomCtx<Builder>`     | Types of a custom builder and of the ctx its handlers receive.                                                                                                                                                                      |
 | `CustomInput`, `Registration`             | Types of the `input` callback's return and of a registered function.                                                                                                                                                                |
 
-Merging fails with an error when a consumed arg and a function arg share a name
-but not a validator kind, when the function's args validator is neither an
-object nor a union, or when the customization consumes args but the function
-declares none. Builders add no authorization of their own.
+When the customization consumes args, merging fails with an error when a
+consumed arg and a function arg share a name but not a validator kind, when the
+function's args validator is neither an object nor a union, or when the
+function declares no args. Builders add no authorization of their own.
 
 ## `./validators` (shipped)
 
-| Export                                 | Contract                                                                                                                                                                                        |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `validate(validator, value, options?)` | `true` when `value` matches (type guard). `options.throw` throws `ValidationError` on the first mismatch; `options.allowUnknownFields` accepts undeclared object fields. Undefined fields pass. |
-| `parse(validator, value)`              | Validates with unknown fields allowed, throws `ValidationError` on mismatch, and returns a copy without undeclared fields (through arrays, records and unions).                                 |
-| `doc(schema, tableName)`               | The table's validator plus `_id` and `_creationTime`; union tables get them on every member. Throws for other validator kinds.                                                                  |
-| `ValidationError`                      | Has `expected`, `got` and an optional `path`; the message names all three.                                                                                                                      |
+| Export                                 | Contract                                                                                                                                                                                                                    |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `validate(validator, value, options?)` | `true` when `value` matches (type guard). `options.throw` throws `ValidationError` on the first mismatch; `options.allowUnknownFields` accepts undeclared object fields. Undeclared fields whose value is `undefined` pass. |
+| `parse(validator, value)`              | Validates with unknown fields allowed, throws `ValidationError` on mismatch, and returns a copy without undeclared fields (through arrays, records and unions).                                                             |
+| `doc(schema, tableName)`               | The table's validator plus `_id` and `_creationTime`; union tables get them on every member. Throws for other validator kinds.                                                                                              |
+| `ValidationError`                      | Has `expected`, `got` and an optional `path`; the message names `expected`, `got`, and `path` when set.                                                                                                                     |
 
 Exported types: `AnyValidator`, `ValidateOptions`, `SystemFields` and
 `AddFieldsToValidator`.

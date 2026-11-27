@@ -275,8 +275,9 @@ describe("context propagation: reserved `_` prefix rejection", () => {
    * Defense in depth: there are two layers that prevent caller-supplied `_*` args.
    *
    *  1. Schema layer — `_*` keys are stripped from the published JSON Schema
-   *     (covered by the "schema stripping" suite). The MCP SDK then rejects
-   *     unknown args at JSON-RPC parse time, BEFORE our handler runs.
+   *     (covered by the "schema stripping" suite). The MCP SDK then strips
+   *     undeclared args, `_*` keys included, when it parses the call, BEFORE
+   *     our handler runs.
    *  2. Handler layer — even if a caller bypasses the SDK and reaches our
    *     handler with `_*` keys (custom transport, bypassed validation), the
    *     framework rejects with a clear "Reserved arg keys not allowed"

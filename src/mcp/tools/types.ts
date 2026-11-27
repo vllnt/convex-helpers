@@ -50,9 +50,10 @@ export type OnCallResult = {
    * (server-side wins).
    *
    * Convention: keys MUST use the framework-reserved underscore prefix
-   * (e.g., `_mcp_principal`, `_request_id`). Request args containing `_`-prefixed
-   * keys are rejected before the hook runs, so this prefix is safe for
-   * server-side context injection (auth, tracing, multi-tenancy, audit, etc.).
+   * (e.g., `_mcp_principal`, `_request_id`). Request args never carry
+   * `_`-prefixed keys to the hook: the MCP SDK drops undeclared args and the
+   * handler rejects any that remain, so this prefix is safe for server-side
+   * context injection (auth, tracing, multi-tenancy, audit, etc.).
    *
    * Empty objects and undefined are no-ops (no allocation, no merge).
    *
@@ -79,7 +80,11 @@ export type OnCallResult = {
   message?: string;
 };
 
-/** Server-wide hooks; `onToolCall` runs before each tool call and after it succeeds or fails. */
+/**
+ * Server-wide hooks; `onToolCall` runs before each tool call and after it
+ * succeeds or fails. When a tool sets `onError`, only `onError` runs in the
+ * error phase, not `onToolCall`.
+ */
 export type LifecycleHooks = {
   onToolCall?: (ctx: CallContext) => HookReturn;
 };

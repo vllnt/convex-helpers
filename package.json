@@ -104,7 +104,7 @@
     ]
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "publishConfig": {
     "access": "public"
@@ -132,7 +132,7 @@
     "backend",
     "custom-functions",
     "validators",
-    "authentication",
+    "identity",
     "better-auth",
     "mcp",
     "model-context-protocol"

@@ -17,16 +17,25 @@ import { brokenLinks } from "../scripts/document-links.mjs";
 import { entries, exportsOf, read } from "./package-exports.js";
 
 /**
- * Holds README.md and llms.txt to the agent-first layout: required sections in
- * order, install and first example near the top, tagged and complete code
- * blocks that type-check against the built package, links that resolve inside
- * the tarball, every export and error text documented, and the exact footer
- * and Ecosystem block.
+ * Holds README.md, docs/API.md and llms.txt to the agent-first layout:
+ * required sections in order, install and first example near the top, tagged
+ * and complete code blocks that type-check against the built package and a
+ * typed schema, links that resolve inside the tarball, every export and error
+ * text documented, and the exact footer and Ecosystem block.
  */
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const readme = read("README.md");
+const apiReference = read("docs/API.md");
 const llms = read("llms.txt");
+const manifest = JSON.parse(read("package.json")) as {
+  description: string;
+  keywords: string[];
+};
+const documents = [
+  ["README.md", readme],
+  ["docs/API.md", apiReference],
+] as const;
 
 const requiredSections = [
   "For coding agents",
@@ -97,7 +106,7 @@ function fences(text: string): Fence[] {
 
 function section(text: string, heading: string): string {
   const start = text.indexOf(`\n## ${heading}\n`);
-  if (start === -1) throw new Error(`README.md: no "## ${heading}" section`);
+  if (start === -1) throw new Error(`no "## ${heading}" section`);
   const next = text.indexOf("\n## ", start + 1);
   return text.slice(start, next === -1 ? undefined : next);
 }
@@ -136,10 +145,15 @@ function pieces(node: ts.Node): string[] {
 
 const errorNames = new Set(["error", "errorMessage", "message", "text"]);
 
+/** zod methods whose second argument is the error message. */
+const zodMessageMethods = new Set(["refine", "regex"]);
+
 /**
- * Every error text src/ can throw or return: `new *Error(...)` arguments,
- * `super(...)` and parameter defaults in Error subclasses, and string values of
- * `error`, `errorMessage`, `message` and `text` properties or variables.
+ * Every error text src/ can throw or return: `new *Error(...)` arguments
+ * (including `ConvexError` `code` and `message` values), `super(...)` and
+ * parameter defaults in Error subclasses, string values of `error`,
+ * `errorMessage`, `message` and `text` properties or variables, and messages
+ * passed to zod `.regex(…, message)` and `.refine(…, message)`.
  */
 function errorTexts(): string[] {
   const texts: string[] = [];
@@ -171,6 +185,13 @@ function errorTexts(): string[] {
     if (errorClass && ts.isParameter(node) && node.initializer !== undefined)
       texts.push(...pieces(node.initializer));
     if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      zodMessageMethods.has(node.expression.name.text) &&
+      node.arguments[1] !== undefined
+    )
+      texts.push(...pieces(node.arguments[1]));
+    if (
       (ts.isPropertyAssignment(node) || ts.isVariableDeclaration(node)) &&
       ts.isIdentifier(node.name) &&
       errorNames.has(node.name.text) &&
@@ -195,6 +216,32 @@ function errorTexts(): string[] {
   ].sort();
 }
 
+/** The first cell of each body row of the README Errors and fixes table. */
+function errorColumn(): string[] {
+  return section(readme, "Errors and fixes")
+    .split("\n")
+    .filter((line) => line.startsWith("| ") && !/^\|\s*-/u.test(line))
+    .slice(1)
+    .map((line) => flatten(line.split(/(?<!\\)\|/u)[1] ?? ""));
+}
+
+/** Bullets of a "When to use" section, each with its continuation lines. */
+function whenToUse(text: string): string[][] {
+  const bullets: string[][] = [];
+  section(text, "When to use")
+    .split("\n")
+    .forEach((line) => {
+      if (line.startsWith("- ")) bullets.push([line]);
+      else if (line.startsWith("  ")) bullets.at(-1)?.push(line);
+    });
+  return bullets;
+}
+
+/** Tells whether a `{ ... }` body, or the whole block, holds nothing but line comments. */
+const placeholder = (body: string): boolean =>
+  /\{\s*(?:\/\/[^\n]*\n\s*)+\}/u.test(body) ||
+  body.split("\n").every((line) => /^\s*(?:\/\/.*)?$/u.test(line));
+
 /** Files `npm pack` would ship (without dist/, which the test builds). */
 function packedFiles(): string[] {
   const [pack] = JSON.parse(
@@ -216,6 +263,40 @@ describe("README.md layout", () => {
     expect(blank).toBe("");
     const sentence = rest.slice(0, rest.indexOf("")).join(" ");
     expect(sentence).toMatch(/^[^.]+\.$/u);
+    expect(sentence.length).toBeLessThanOrEqual(160);
+    expect(sentence).toBe(manifest.description);
+    const summary = llms.split("\n").slice(2);
+    expect(
+      summary
+        .slice(
+          0,
+          summary.findIndex((line) => !line.startsWith("> ")),
+        )
+        .map((line) => line.slice(2))
+        .join(" "),
+    ).toBe(sentence);
+  });
+
+  it("has 8 to 12 package keywords", () => {
+    expect(manifest.keywords.length).toBeGreaterThanOrEqual(8);
+    expect(manifest.keywords.length).toBeLessThanOrEqual(12);
+  });
+
+  it.each([
+    ["README.md", readme],
+    ["llms.txt", llms],
+  ])("lists who should and should not use it in %s", (_name, text) => {
+    const bullets = whenToUse(text);
+    const use = bullets.filter(([first]) => first?.startsWith("- Use it"));
+    const avoid = bullets.filter(([first]) =>
+      first?.startsWith("- Do not use it"),
+    );
+    expect(use.length).toBeGreaterThanOrEqual(2);
+    expect(use.length).toBeLessThanOrEqual(4);
+    expect(avoid.length).toBeGreaterThanOrEqual(1);
+    expect(avoid.length).toBeLessThanOrEqual(3);
+    expect(use.length + avoid.length).toBe(bullets.length);
+    expect(bullets.filter((bullet) => bullet.length > 2)).toStrictEqual([]);
   });
 
   it("has the required sections in order", () => {
@@ -248,15 +329,21 @@ describe("README.md layout", () => {
     expect(top).not.toContain("img.shields.io");
   });
 
-  it("tags every code block and leaves no gaps", () => {
-    const blocks = fences(readme);
-    expect(blocks.length).toBeGreaterThan(0);
-    expect(blocks.filter((fence) => fence.info === "")).toStrictEqual([]);
-    const gaps = blocks.filter((fence) =>
-      /\.\.\.(?![\w$({[])|…/u.test(fence.body),
-    );
-    expect(gaps.map((fence) => fence.start)).toStrictEqual([]);
-  });
+  it.each(documents)(
+    "tags every code block in %s and leaves no gaps or placeholders",
+    (_name, text) => {
+      const blocks = fences(text);
+      expect(blocks.length).toBeGreaterThan(0);
+      expect(
+        blocks.filter((fence) => fence.info === "").map((fence) => fence.start),
+      ).toStrictEqual([]);
+      const gaps = blocks.filter(
+        (fence) =>
+          /\.\.\.(?![\w$({[])|…/u.test(fence.body) || placeholder(fence.body),
+      );
+      expect(gaps.map((fence) => fence.start)).toStrictEqual([]);
+    },
+  );
 
   it("has the exact Links section just before License", () => {
     expect(readme).toContain(`\n${links}\n## License\n`);
@@ -284,11 +371,66 @@ describe("README.md content", () => {
     expect([...listed].sort()).toStrictEqual([...expected].sort());
   });
 
-  it("documents every error text in Errors and fixes", () => {
-    const table = flatten(section(readme, "Errors and fixes"));
-    const texts = errorTexts();
+  let texts: string[] = [];
+
+  beforeAll(() => {
+    texts = errorTexts();
+  }, 120_000);
+
+  it("documents every error text in the first column of Errors and fixes", () => {
+    const column = errorColumn();
     expect(texts.length).toBeGreaterThan(30);
-    expect(texts.filter((text) => !table.includes(text))).toStrictEqual([]);
+    expect(
+      texts.filter((text) => !column.some((cell) => cell.includes(text))),
+    ).toStrictEqual([]);
+  }, 60_000);
+
+  it("links related @vllnt packages to their package pages", () => {
+    const related = [
+      ...section(readme, "Related packages").matchAll(
+        /\[`?(@vllnt\/[\w.-]+)`?\]\(([^)\s]+)\)/gu,
+      ),
+    ];
+    expect(related.length).toBeGreaterThan(0);
+    expect(
+      related
+        .filter(
+          ([, name = "", url]) =>
+            url !== `https://oss.vllnt.com/packages/${name.slice(7)}`,
+        )
+        .map(([link]) => link),
+    ).toStrictEqual([]);
+  });
+
+  it("uses no link text such as here", () => {
+    expect(readme.match(/\[\s*(?:click )?here\s*\]\(/giu) ?? []).toStrictEqual(
+      [],
+    );
+  });
+
+  it("gives every image alt text", () => {
+    const images = [...readme.matchAll(/!\[([^\]]*)\]\(/gu)];
+    expect(images.length).toBeGreaterThan(0);
+    expect(
+      images
+        .filter(([, alt = ""]) => alt.trim() === "")
+        .map(([image]) => image),
+    ).toStrictEqual([]);
+  });
+
+  it("puts the badges after the Quick start heading", () => {
+    const quickStart = readme.indexOf("\n## Quick start\n");
+    const badges = [
+      ...readme.matchAll(
+        /!\[[^\]]*\]\((?:https:\/\/img\.shields\.io|[^)]*badge\.svg)/gu,
+      ),
+    ];
+    expect(badges.length).toBeGreaterThan(0);
+    expect(
+      badges
+        .filter((badge) => badge.index < quickStart)
+        .map(([badge]) => badge),
+    ).toStrictEqual([]);
   });
 
   it("resolves every relative link and anchor inside the tarball", () => {
@@ -336,9 +478,19 @@ describe("retired domain", () => {
   });
 });
 
-describe("README.md examples against the built package", () => {
+/**
+ * Type-checks the ts blocks of README.md and docs/API.md against the built
+ * package. Convex examples import a typed `_generated/server` built from a stub
+ * schema (`users` with a `by_subject` index on `subject`, and `projects` with
+ * `name`), so the compiler checks table, index and field names. The stub
+ * `_generated/api` is `anyApi`, so the compiler does not check function
+ * references such as `api.projects.list`.
+ */
+describe("README.md and docs/API.md examples against the built package", () => {
   const work = join(root, "node_modules/.cache/readme-examples");
   const packageDirectory = join(work, "node_modules/@vllnt/convex-helpers");
+  let program: ts.Program | undefined;
+  let files: string[] = [];
 
   beforeAll(() => {
     rmSync(work, { force: true, recursive: true });
@@ -364,32 +516,58 @@ describe("README.md examples against the built package", () => {
       writeFileSync(join(work, path), text);
     };
     write(
+      "convex/schema.ts",
+      [
+        'import { defineSchema, defineTable } from "convex/server";',
+        'import { v } from "convex/values";',
+        "",
+        "export default defineSchema({",
+        "  projects: defineTable({ name: v.string() }),",
+        '  users: defineTable({ subject: v.string() }).index("by_subject", ["subject"]),',
+        "});",
+        "",
+      ].join("\n"),
+    );
+    write(
       "convex/_generated/server.ts",
-      'export { actionGeneric as action, mutationGeneric as mutation, queryGeneric as query } from "convex/server";\n',
+      [
+        "import {",
+        "  actionGeneric,",
+        "  mutationGeneric,",
+        "  queryGeneric,",
+        "  type ActionBuilder,",
+        "  type DataModelFromSchemaDefinition,",
+        "  type MutationBuilder,",
+        "  type QueryBuilder,",
+        '} from "convex/server";',
+        "",
+        'import type schema from "../schema";',
+        "",
+        "type DataModel = DataModelFromSchemaDefinition<typeof schema>;",
+        "",
+        'export const query: QueryBuilder<DataModel, "public"> = queryGeneric;',
+        'export const mutation: MutationBuilder<DataModel, "public"> = mutationGeneric;',
+        'export const action: ActionBuilder<DataModel, "public"> = actionGeneric;',
+        "",
+      ].join("\n"),
     );
     write(
       "convex/_generated/api.ts",
       'export { anyApi as api } from "convex/server";\n',
     );
-    fences(readme).forEach((fence, index) => {
-      if (fence.info !== "ts") return;
-      const folder = fence.body.includes('from "@/') ? "app" : "convex";
-      write(`${folder}/readme-${String(index)}.ts`, fence.body);
+    documents.forEach(([name, text]) => {
+      const prefix = name === "README.md" ? "readme" : "api";
+      fences(text).forEach((fence, index) => {
+        if (fence.info !== "ts") return;
+        const folder = fence.body.includes('from "@/') ? "app" : "convex";
+        write(`${folder}/${prefix}-${String(index)}.ts`, fence.body);
+      });
     });
-  }, 120_000);
 
-  afterAll(() => {
-    rmSync(work, { force: true, recursive: true });
-  });
-
-  it("type-checks every ts block", () => {
-    const files = ts.sys
+    files = ts.sys
       .readDirectory(work, [".ts"], ["node_modules"])
-      .filter((path) => /\/readme-\d+\.ts$/u.test(path));
-    expect(files.length).toBe(
-      fences(readme).filter((fence) => fence.info === "ts").length,
-    );
-    const program = ts.createProgram(files, {
+      .filter((path) => /\/(?:readme|api)-\d+\.ts$/u.test(path));
+    program = ts.createProgram(files, {
       lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
       module: ts.ModuleKind.ESNext,
       moduleResolution: ts.ModuleResolutionKind.Bundler,
@@ -400,11 +578,25 @@ describe("README.md examples against the built package", () => {
       target: ts.ScriptTarget.ES2022,
       types: ["node"],
     });
+  }, 120_000);
+
+  afterAll(() => {
+    rmSync(work, { force: true, recursive: true });
+  });
+
+  it("type-checks every ts block", () => {
+    expect(files.length).toBe(
+      documents.flatMap(([, text]) =>
+        fences(text).filter((fence) => fence.info === "ts"),
+      ).length,
+    );
+    if (program === undefined) throw new Error("examples were not built");
     const problems = ts
       .getPreEmitDiagnostics(program)
-      .map((diagnostic) =>
-        ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"),
+      .map(
+        (diagnostic) =>
+          `${diagnostic.file?.fileName.slice(work.length + 1) ?? ""}: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")}`,
       );
     expect(problems).toStrictEqual([]);
-  });
+  }, 60_000);
 });

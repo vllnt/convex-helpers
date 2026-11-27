@@ -28,8 +28,8 @@ Docs for the installed version ship in the package: `README.md`, `docs/API.md`,
 - Use it to map the signed-in identity to a host user row (`./identity`).
 - Use it for `@convex-dev/better-auth` origins and cookies (`./better-auth`), or
   to serve Convex functions as MCP tools over Streamable HTTP (`./mcp`).
-- Do not use it for state such as rate limits, idempotency or API keys: use a
-  `@convex-dev/*` or `@vllnt/convex-*` component.
+- Do not use it for state. Rate limits: `@convex-dev/rate-limiter`. API keys:
+  `@vllnt/convex-api-keys`. Other: a `@convex-dev/*` or `@vllnt/convex-*` component.
 - Do not use it for relationships, RLS or triggers: use `convex-helpers`.
 
 ## Limits
