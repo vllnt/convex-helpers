@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
+import { codeTypeNames } from "../scripts/document-links.mjs";
+
 /**
  * Checks that docs/API.md names every public export (values and types) of each
  * package entry in that entry's section, and that each entry exports every name
@@ -118,25 +120,8 @@ const outsideNames = new Set([
   "AppError",
   "RowLevelSecurity",
   "Builder",
-  "Expected",
   "Tool",
 ]);
-
-/**
- * PascalCase names inside the code spans of `markdown` that read as type
- * expressions (quoted strings dropped), e.g. `Promise<ToolDef> | undefined`.
- */
-function codeTypeNames(markdown: string): string[] {
-  return [
-    ...markdown.replaceAll(/^```[\s\S]*?^```/gmu, "").matchAll(/`([^`\n]+)`/gu),
-  ].flatMap((match) => {
-    const code = (match[1] ?? "").replaceAll(/"[^"]*"|'[^']*'/gu, "");
-    if (!/^[\w<>[\]|,.()=>?:{} ]+$/u.test(code)) return [];
-    return [...code.matchAll(/\b[A-Z]\w+\b/gu)]
-      .map((name) => name[0])
-      .filter((name) => !/^[A-Z\d_]+$/u.test(name));
-  });
-}
 
 const publicNames = new Set(entries.flatMap((entry) => exportsOf(entry.file)));
 

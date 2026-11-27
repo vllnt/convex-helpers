@@ -7,11 +7,30 @@
 const fence =
   /^ {0,3}(([`~])\2{2,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1\2*[ \t]*$|(?![\s\S]))/gmu;
 // A code span never crosses a blank line (the end of a paragraph).
-const codeSpan = /(`+)(?!`)(?:(?!\n[ \t]*\n)[\s\S])*?[^`]\1(?!`)/gu;
+const codeSpan = /(`+)(?!`)((?:(?!\n[ \t]*\n)[\s\S])*?[^`])\1(?!`)/gu;
 
 /** Markdown with fenced code blocks and inline code spans blanked out. */
 export function withoutCode(markdown) {
   return markdown.replace(fence, "").replace(codeSpan, "");
+}
+
+/**
+ * PascalCase names in the code spans of `markdown` that read as type
+ * expressions, e.g. `Promise<ToolDef> \| undefined` in a table. Quoted strings
+ * and all-caps names (error codes, HTTP methods) are dropped.
+ */
+export function codeTypeNames(markdown) {
+  const text = markdown.replace(fence, "");
+  return [...text.matchAll(codeSpan)].flatMap((match) => {
+    const code = match[2]
+      .trim()
+      .replaceAll("\\|", "|")
+      .replaceAll(/"[^"]*"|'[^']*'/gu, "");
+    if (!/^[\w<>[\]|&;,.()=>?:{} ]+$/u.test(code)) return [];
+    return [...code.matchAll(/\b[A-Z]\w+\b/gu)]
+      .map((name) => name[0])
+      .filter((name) => !/^[A-Z\d_]+$/u.test(name));
+  });
 }
 
 const linkForms = [

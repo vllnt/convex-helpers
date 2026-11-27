@@ -1,4 +1,5 @@
 export function withoutCode(markdown: string): string;
+export function codeTypeNames(markdown: string): string[];
 export function linkTargets(markdown: string): string[];
 export function isAbsolute(target: string): boolean;
 export function slug(text: string): string;

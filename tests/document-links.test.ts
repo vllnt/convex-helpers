@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   brokenLinks,
+  codeTypeNames,
   headingAnchors,
   linkTargets,
   repoOnlyMentions,
@@ -162,5 +163,34 @@ describe("repoOnlyMentions", () => {
         repoOnly,
       ),
     ).toStrictEqual([]);
+  });
+});
+
+describe("codeTypeNames", () => {
+  it("reads type names in spans, table cells and nested types", () => {
+    const markdown = [
+      "`MCPPhantom` and `Promise<Inner[]>` and `ToolDef | Union`",
+      "| `(ctx) => Left \\| undefined` | `A & Both; C` |",
+      "`` Expected `record` `` then `After`",
+    ].join("\n");
+    expect(codeTypeNames(markdown)).toStrictEqual([
+      "MCPPhantom",
+      "Promise",
+      "Inner",
+      "ToolDef",
+      "Union",
+      "Left",
+      "Both",
+      "After",
+    ]);
+  });
+
+  it("skips prose, quoted text, error codes and fenced code", () => {
+    const markdown = [
+      '`{ error: "Invalid key." }` `UNAUTHENTICATED` `GET`',
+      "`Validator error: Expected \\`x\\`, got \\`y\\``",
+      "~~~ts\nconst x: Fenced = 1;\n~~~",
+    ].join("\n");
+    expect(codeTypeNames(markdown)).toStrictEqual([]);
   });
 });
