@@ -9,8 +9,10 @@
     "outDir": "dist",
     "rootDir": "src",
     "skipLibCheck": true,
-    // Off until adopted on its own: enabling it changes the public `.d.ts` and
-    // runtime object shapes (e.g. `query()` returning keys set to undefined).
+    // Off until adopted on its own: enabling it fails the type-check in src/mcp,
+    // and each fix either widens public optional props to `T | undefined` in the
+    // `.d.ts` or drops undefined-valued keys from runtime objects (e.g. the
+    // `ToolDef` that `query()` returns).
     "exactOptionalPropertyTypes": false
   },
   "include": ["src/**/*"],
