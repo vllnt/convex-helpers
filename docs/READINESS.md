@@ -72,18 +72,15 @@ Review limits: source reading only. Real login/JWT behavior was not exercised.
 
 ## Dependency reachability
 
-Development-only advisories (Handlebars, esbuild, deepmerge-ts) are fixed with
-scoped overrides in `package.json` (`handlebars@<4.7.10`,
-`deepmerge-ts@<8.0.0`); other overrides were dropped once the lockfile resolved
-the same versions without them.
-
-Remaining: `minimatch` (3.x and 10.x, moderate,
-[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)),
-reached only through `@vllnt/eslint-config` lint tooling. The fix is minimatch
-11, a major outside those packages' ranges, so no override is applied. Not
-imported by package runtime. `pnpm audit --prod` reports zero advisories; this
-is not proof for a host's independently installed optional peers. Convex CLI's
-esbuild 0.27.0 is outside the reported vulnerable range (>=0.27.3 <0.28.1).
+Development-only advisories are fixed with scoped overrides in `package.json`,
+all reached only through `@vllnt/eslint-config` lint tooling:
+`handlebars@<4.7.10`, `deepmerge-ts@<8.0.0` and `minimatch@>=7.0.0 <11.0.1`
+([GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249),
+lint passes with minimatch 11). Rechecked on 2026-11-27: removing any of the
+three brings its advisories back. Overrides are dropped once the lockfile
+resolves patched versions without them (`hono` and `@hono/node-server` were
+dropped then). `pnpm audit` and `pnpm audit --prod` report zero advisories; this
+is not proof for a host's independently installed optional peers.
 
 ## Unverified conditions
 

@@ -25,6 +25,12 @@ and this project adheres to
   notes). `homepage` is now https://oss.vllnt.com/packages/convex-helpers.
 - Tooling: every push to `main` touching the package publishes a canary (no
   repository-variable gate), and docs-only changes now trigger it.
+- Development dependencies: `convex` 1.51.0, `convex-test` 0.0.73, `vitest` and
+  `@vitest/coverage-v8` 5.1.1, `@vllnt/typescript` 3.0.0 (with
+  `exactOptionalPropertyTypes` left off so the published types do not change),
+  pnpm 10.34.9. The peer ranges are unchanged; the tests and a type-check of a
+  consumer of the packed package pass at their minimums (`convex` 1.45.0,
+  `@modelcontextprotocol/sdk` 1.29.0, `zod` 4.3.6).
 
 ## [0.2.0] - 2026-11-26
 

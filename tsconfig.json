@@ -8,7 +8,10 @@
     "sourceMap": true,
     "outDir": "dist",
     "rootDir": "src",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    // Off until adopted on its own: enabling it changes the public `.d.ts` and
+    // runtime object shapes (e.g. `query()` returning keys set to undefined).
+    "exactOptionalPropertyTypes": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

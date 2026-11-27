@@ -103,6 +103,7 @@ describe("lifecycle hooks", () => {
       hooks: {
         onToolCall: async (ctx) => {
           if (ctx.phase === "before") return { abort: true, errorMessage: "Rate limit exceeded" };
+          return undefined;
         },
       },
       tools: {
@@ -126,6 +127,7 @@ describe("lifecycle hooks", () => {
       hooks: {
         onToolCall: async (ctx) => {
           if (ctx.phase === "before") return { abort: true };
+          return undefined;
         },
       },
       tools: {
@@ -150,6 +152,7 @@ describe("lifecycle hooks", () => {
       hooks: {
         onToolCall: async (ctx) => {
           if (ctx.phase === "error") return { message: "Service temporarily unavailable" };
+          return undefined;
         },
       },
       tools: {
@@ -175,6 +178,7 @@ describe("lifecycle hooks", () => {
       hooks: {
         onToolCall: async (ctx) => {
           if (ctx.phase === "error") { serverHookCalled(); return { message: "Server-level error" }; }
+          return undefined;
         },
       },
       tools: {
