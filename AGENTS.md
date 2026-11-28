@@ -116,4 +116,5 @@ pnpm typecheck
 pnpm lint
 pnpm test
 pnpm test:coverage
+pnpm test:package   # after build: install the packed tarball in a clean consumer
 ```
