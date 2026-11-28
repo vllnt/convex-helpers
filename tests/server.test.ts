@@ -251,6 +251,34 @@ describe("handler", () => {
     expect(mockClient.action).toHaveBeenCalled();
   });
 
+  it("returns the documented -32602 input error for malformed int64 strings", async () => {
+    const server = createTestServer({
+      tools: {
+        count: query(null, {
+          args: makeValidator("object", {
+            fields: { value: makeValidator("int64") },
+          }),
+        }),
+      },
+    });
+    const handler = server.handler();
+    const mockClient = await getMockClient();
+
+    for (const value of ["12abc", "1.5", "0x10", "1e3"]) {
+      const response = await handler.POST(mcpRequest("tools/call", {
+        name: "count",
+        arguments: { value },
+      }));
+      const data = await parseSSEResponse(response);
+      expect(data.result.isError).toBe(true);
+      const text: string = data.result.content[0].text;
+      expect(text).toMatch(/^MCP error -32602: Input validation error/u);
+      expect(text).toContain("Expected a decimal 64-bit integer string");
+      expect(text).not.toContain("BigInt");
+    }
+    expect(mockClient.query).not.toHaveBeenCalled();
+  });
+
   it("returns generic error when Convex throws (AC-E2)", async () => {
     const server = createTestServer();
     const handler = server.handler();

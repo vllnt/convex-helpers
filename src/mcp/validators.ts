@@ -49,6 +49,8 @@ function asTuple<T>(array: T[]): [T, T, ...T[]] {
   return array;
 }
 
+const INT64_PATTERN = /^-?\d+$/;
+
 function convertKind(validator: ConvexValidator): z.ZodTypeAny {
   switch (validator.kind) {
     case "string":
@@ -66,8 +68,10 @@ function convertKind(validator: ConvexValidator): z.ZodTypeAny {
     case "int64":
       return z
         .string()
-        .regex(/^-?\d+$/, "Expected a decimal 64-bit integer string")
+        .regex(INT64_PATTERN, "Expected a decimal 64-bit integer string")
         .refine((value) => {
+          // zod runs this check even when the regex failed; BigInt() would throw.
+          if (!INT64_PATTERN.test(value)) return true;
           const parsed = BigInt(value);
           return parsed >= -(1n << 63n) && parsed <= (1n << 63n) - 1n;
         }, "Integer is outside the signed 64-bit range")
