@@ -49,7 +49,8 @@ export function resourceArgsToZod(
   return schema.extend(overrides);
 }
 
-// Same text as the SDK's tool input errors: "<message> at <path>" per issue.
+// Same "<message> at <path>" per-issue text as recent SDK versions use for
+// tool input errors.
 // Params are always an object, so every issue has a path starting with a key.
 function issueText({ message, path }: z.core.$ZodIssue): string {
   const location = path

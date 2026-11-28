@@ -366,7 +366,8 @@ run time. The `./identity` errors are `ConvexError`s: the code is in
   `v.boolean()`. A `v.float64()` param takes decimal text (`1.5`, `-2`, `2e3`)
   and a `v.boolean()` param takes exactly `true` or `false`; both are converted
   before the query runs. Inside a union or array they are not converted, so a
-  union param matches only its string members.
+  union param matches only members that accept the raw string (strings, ids,
+  string literals, int64 or bytes).
 - `createMCPServer` reports `name` `"convex-mcp"` and `version` `"0.1.0"` in
   `serverInfo` unless you set them; `version` is the MCP server's own version,
   not this package's.

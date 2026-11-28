@@ -210,7 +210,8 @@ digits, an optional fraction and exponent, such as `1.5`, `-2` or `2e3`) and is
 converted to a finite number; a `v.boolean()` param takes exactly `true` or
 `false` and is converted to a boolean. Optional fields are converted too.
 Inside a union or array they are not converted, so a union param such as
-`v.union(v.boolean(), v.literal("auto"))` matches only its string members.
+`v.union(v.boolean(), v.literal("auto"))` matches only members that accept the
+raw string (strings, ids, string literals, int64 or bytes).
 
 A parameter that fails `args` returns the JSON-RPC error
 `MCP error -32602: Input validation error: Invalid arguments for resource <uri template>: <zod message> at <param>`
