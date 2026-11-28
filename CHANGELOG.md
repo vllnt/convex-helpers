@@ -72,6 +72,11 @@ and this project adheres to
 
 ### Fixed
 
+- `./mcp`: resource URI params declared `v.float64()` or `v.boolean()` are
+  converted from decimal text and `true`/`false`, so those resources can be
+  read; every read failed before. A resource param that fails its validator now
+  returns `MCP error -32602: Input validation error: ...` instead of
+  `Resource read failed`.
 - `./mcp`: a `v.int64()` arg sent as a malformed decimal string (`"12abc"`,
   `"1.5"`, `"1e3"`) now returns the documented
   `MCP error -32602: Input validation error: ... Expected a decimal 64-bit integer string`
