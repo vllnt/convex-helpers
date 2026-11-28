@@ -4,12 +4,12 @@ import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { stringifyConvex } from "../serialization.js";
 import { isReservedKey } from "../tools/register.js";
 import type { ConvexClient } from "../types.js";
-import { convexArgsToZod } from "../validators.js";
 
+import { parseResourceParams, resourceArgsToZod } from "./params.js";
 import type { ResourceDef } from "./types.js";
 
 type PreparedResource = {
-  argsSchema: ReturnType<typeof convexArgsToZod> | undefined;
+  argsSchema: ReturnType<typeof resourceArgsToZod> | undefined;
   description: string | undefined;
   resourceDef: ResourceDef;
   template: ResourceTemplate;
@@ -21,7 +21,7 @@ export function prepareResources(
 ): PreparedResource[] {
   return Object.entries(resources).map(([uriPattern, resourceDef]) => ({
     argsSchema: resourceDef.args
-      ? convexArgsToZod(resourceDef.args)
+      ? resourceArgsToZod(resourceDef.args)
       : undefined,
     description: resourceDef.description,
     resourceDef,
@@ -50,14 +50,18 @@ export function registerResources(
         mimeType: "application/json",
       },
       async (uri, parameters: Record<string, unknown>) => {
+        // Same contract as tools: `_*` keys are reserved for server-injected
+        // context and must never come from a caller-controlled URI.
+        if (Object.keys(parameters).some(isReservedKey)) {
+          throw new Error("Resource read failed");
+        }
+        // Outside the try: an input error names only the caller's own params.
+        const validatedParameters = parseResourceParams(
+          uriPattern,
+          argsSchema,
+          parameters,
+        );
         try {
-          // Same contract as tools: `_*` keys are reserved for server-injected
-          // context and must never come from a caller-controlled URI.
-          if (Object.keys(parameters).some(isReservedKey)) {
-            throw new Error("Reserved resource parameter");
-          }
-          const validatedParameters =
-            argsSchema?.parse(parameters) ?? parameters;
           const result = await client.query(
             resourceDef.ref,
             validatedParameters,

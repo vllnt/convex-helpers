@@ -319,6 +319,38 @@ describe("handler", () => {
     expect(mockClient.query).not.toHaveBeenCalled();
   });
 
+  it("keeps tool float64 and boolean args strict: strings are rejected, numbers and booleans pass", async () => {
+    const handler = createTestServer({
+      tools: {
+        measure: query(null, {
+          args: makeValidator("object", {
+            fields: { on: makeValidator("boolean"), size: makeValidator("float64") },
+          }),
+        }),
+      },
+    }).handler();
+    const mockClient = await getMockClient();
+
+    for (const arguments_ of [{ on: true, size: "1.5" }, { on: "true", size: 1.5 }]) {
+      const data = await parseSSEResponse(await handler.POST(mcpRequest("tools/call", {
+        name: "measure",
+        arguments: arguments_,
+      })));
+      expect(data.result.isError).toBe(true);
+      expect(data.result.content[0].text).toMatch(
+        /^MCP error -32602: Input validation error: Invalid arguments for tool measure: /u,
+      );
+    }
+    expect(mockClient.query).not.toHaveBeenCalled();
+
+    const ok = await parseSSEResponse(await handler.POST(mcpRequest("tools/call", {
+      name: "measure",
+      arguments: { on: false, size: 1.5 },
+    })));
+    expect(ok.result.isError).toBeUndefined();
+    expect(mockClient.query).toHaveBeenLastCalledWith(null, { on: false, size: 1.5 });
+  });
+
   it("returns generic error when Convex throws (AC-E2)", async () => {
     const server = createTestServer();
     const handler = server.handler();
@@ -475,6 +507,207 @@ describe("resource read", () => {
       expect(JSON.stringify(data)).not.toContain("admin");
       expect(mockClient.query).not.toHaveBeenCalled();
     }
+  });
+
+  function readResource(handler: ReturnType<ReturnType<typeof createTestServer>["handler"]>, uri: string) {
+    return handler.POST(mcpRequest("resources/read", { uri })).then(parseSSEResponse);
+  }
+
+  function inputError(template: string, message: string): string {
+    return `MCP error -32602: Input validation error: Invalid arguments for resource ${template}: ${message}`;
+  }
+
+  it("converts v.float64() URI params from decimal text before dispatch", async () => {
+    const handler = createTestServer({
+      resources: {
+        "num://{value}": resource(null, {
+          args: makeValidator("object", { fields: { value: makeValidator("float64") } }),
+        }),
+      },
+    }).handler();
+    const mockClient = await getMockClient();
+    mockClient.query.mockResolvedValue({ ok: true });
+
+    for (const [text, value] of [["1.5", 1.5], ["-1.5", -1.5], ["2e3", 2000], ["0.25", 0.25], ["1", 1], ["-0", -0], ["1E-2", 0.01], ["1e+2", 100]] as const) {
+      const data = await readResource(handler, `num://${text}`);
+      expect(data.error).toBeUndefined();
+      expect(JSON.parse(data.result.contents[0].text)).toEqual({ ok: true });
+      expect(mockClient.query).toHaveBeenLastCalledWith(null, { value });
+    }
+  });
+
+  it("converts v.boolean() URI params from true/false before dispatch", async () => {
+    const handler = createTestServer({
+      resources: {
+        "flag://{on}": resource(null, {
+          args: makeValidator("object", { fields: { on: makeValidator("boolean") } }),
+        }),
+      },
+    }).handler();
+    const mockClient = await getMockClient();
+
+    for (const [text, on] of [["true", true], ["false", false]] as const) {
+      const data = await readResource(handler, `flag://${text}`);
+      expect(data.result.contents).toHaveLength(1);
+      expect(mockClient.query).toHaveBeenLastCalledWith(null, { on });
+    }
+  });
+
+  it("converts an optional v.float64() param when present and accepts it absent", async () => {
+    const args = makeValidator("object", {
+      fields: {
+        id: makeValidator("string"),
+        limit: makeValidator("float64", { isOptional: "optional" }),
+      },
+    });
+    const handler = createTestServer({
+      resources: {
+        "page://{id}{?limit}": resource(null, { args }),
+        "first://{id}": resource(null, { args }),
+      },
+    }).handler();
+    const mockClient = await getMockClient();
+
+    expect((await readResource(handler, "page://a?limit=2.5")).result.contents).toHaveLength(1);
+    expect(mockClient.query).toHaveBeenLastCalledWith(null, { id: "a", limit: 2.5 });
+    expect((await readResource(handler, "first://a")).result.contents).toHaveLength(1);
+    expect(mockClient.query).toHaveBeenLastCalledWith(null, { id: "a" });
+  });
+
+  it("returns the -32602 input error for malformed float64 and boolean text", async () => {
+    const handler = createTestServer({
+      resources: {
+        "num://x{?value}": resource(null, {
+          args: makeValidator("object", { fields: { value: makeValidator("float64") } }),
+        }),
+        "flag://{on}": resource(null, {
+          args: makeValidator("object", { fields: { on: makeValidator("boolean") } }),
+        }),
+      },
+    }).handler();
+    const mockClient = await getMockClient();
+
+    for (const text of ["%201", "0x10", "NaN", "Infinity", "-Infinity", "1e400", "1,5", "+1", "1.", ".5", "1e", "abc"]) {
+      const data = await readResource(handler, `num://x?value=${text}`);
+      expect(data.error).toEqual({
+        code: -32602,
+        message: inputError("num://x{?value}", "Expected a decimal number at value"),
+      });
+    }
+    for (const text of ["1", "0", "True", "FALSE", "yes", "%20true"]) {
+      const data = await readResource(handler, `flag://${text}`);
+      expect(data.error).toEqual({
+        code: -32602,
+        message: inputError("flag://{on}", "Expected true or false at on"),
+      });
+    }
+    expect(mockClient.query).not.toHaveBeenCalled();
+  });
+
+  it("returns the -32602 input error for int64, bytes, literal and array params that fail args", async () => {
+    const handler = createTestServer({
+      resources: {
+        "counter://{value}": resource(null, {
+          args: makeValidator("object", { fields: { value: makeValidator("int64") } }),
+        }),
+        "blob://{data}": resource(null, {
+          args: makeValidator("object", { fields: { data: makeValidator("bytes") } }),
+        }),
+        "mode://{mode}": resource(null, {
+          args: makeValidator("object", { fields: { mode: makeValidator("literal", { value: "fast" }) } }),
+        }),
+        "list://{ids*}": resource(null, {
+          args: makeValidator("object", {
+            fields: { ids: makeValidator("array", { element: makeValidator("int64") }) },
+          }),
+        }),
+      },
+    }).handler();
+    const mockClient = await getMockClient();
+
+    expect((await readResource(handler, "counter://12abc")).error).toEqual({
+      code: -32602,
+      message: inputError("counter://{value}", "Expected a decimal 64-bit integer string at value"),
+    });
+    expect((await readResource(handler, "counter://9223372036854775808")).error).toEqual({
+      code: -32602,
+      message: inputError("counter://{value}", "Integer is outside the signed 64-bit range at value"),
+    });
+    expect((await readResource(handler, "blob://!!!")).error).toEqual({
+      code: -32602,
+      message: inputError("blob://{data}", "Expected base64-encoded binary data at data"),
+    });
+    const literal = await readResource(handler, "mode://slow");
+    expect(literal.error.code).toBe(-32602);
+    expect(literal.error.message).toMatch(/^MCP error -32602: Input validation error: Invalid arguments for resource mode:\/\/\{mode\}: .* at mode$/u);
+    expect((await readResource(handler, "list://1,x")).error).toEqual({
+      code: -32602,
+      message: inputError("list://{ids*}", "Expected a decimal 64-bit integer string at ids[1]"),
+    });
+    expect(mockClient.query).not.toHaveBeenCalled();
+  });
+
+  it("does not convert float64 or boolean members inside a union param", async () => {
+    const handler = createTestServer({
+      resources: {
+        "mode://{mode}": resource(null, {
+          args: makeValidator("object", {
+            fields: {
+              mode: makeValidator("union", {
+                members: [makeValidator("boolean"), makeValidator("literal", { value: "auto" })],
+              }),
+            },
+          }),
+        }),
+      },
+    }).handler();
+    const mockClient = await getMockClient();
+
+    expect((await readResource(handler, "mode://auto")).result.contents).toHaveLength(1);
+    expect(mockClient.query).toHaveBeenLastCalledWith(null, { mode: "auto" });
+    mockClient.query.mockClear();
+    const data = await readResource(handler, "mode://true");
+    expect(data.error.code).toBe(-32602);
+    expect(data.error.message).toMatch(/^MCP error -32602: Input validation error: Invalid arguments for resource mode:\/\/\{mode\}: .* at mode$/u);
+    expect(mockClient.query).not.toHaveBeenCalled();
+  });
+
+  it("dispatches a resource whose v.object() args declare no fields", async () => {
+    const handler = createTestServer({
+      resources: { "health://{check}": resource(null, { args: makeValidator("object") }) },
+    }).handler();
+    const mockClient = await getMockClient();
+
+    expect((await readResource(handler, "health://db")).result.contents).toHaveLength(1);
+    expect(mockClient.query).toHaveBeenLastCalledWith(null, {});
+  });
+
+  it("keeps the generic Resource read failed for a Convex error and a reserved param", async () => {
+    const handler = createTestServer({
+      resources: {
+        "num://{value}": resource(null, {
+          args: makeValidator("object", { fields: { value: makeValidator("float64") } }),
+        }),
+        "doc://{id}/{_flag}": resource(null, {
+          args: makeValidator("object", {
+            fields: { _flag: makeValidator("boolean"), id: makeValidator("string") },
+          }),
+        }),
+      },
+    }).handler();
+    const mockClient = await getMockClient();
+    mockClient.query.mockRejectedValueOnce(new Error("secret-token-123 leaked"));
+
+    const convexError = await readResource(handler, "num://1.5");
+    expect(convexError.error).toEqual({ code: -32603, message: "Resource read failed" });
+    expect(mockClient.query).toHaveBeenLastCalledWith(null, { value: 1.5 });
+
+    mockClient.query.mockClear();
+    for (const uri of ["doc://1/true", "doc://1/notabool"]) {
+      const reserved = await readResource(handler, uri);
+      expect(reserved.error).toEqual({ code: -32603, message: "Resource read failed" });
+    }
+    expect(mockClient.query).not.toHaveBeenCalled();
   });
 
   it("returns error when resource read fails", async () => {

@@ -202,12 +202,21 @@ authorize inside the backing function. JSON `int64` strings become `bigint`,
 base64 `bytes` strings become `ArrayBuffer`, and native Convex results use
 Convex's lossless tagged JSON encoding.
 
-URI parameters are always strings. Declare each one with a validator that
-accepts a string: `v.string()`, `v.id()`, a string literal (or a union of
-them), `v.int64()` (converted to `bigint`) or `v.bytes()` (converted to
-`ArrayBuffer`). A resource whose `args` use `v.float64()` or `v.boolean()` is
-accepted by `createMCPServer`, but every read of it fails with
-"Resource read failed"; parameters are not converted to numbers or booleans.
+URI parameters always arrive as strings. Declare each one with `v.string()`,
+`v.id()`, a string literal (or a union of them), `v.int64()` (converted to
+`bigint`), `v.bytes()` (converted to `ArrayBuffer`), `v.float64()` or
+`v.boolean()`. A `v.float64()` param takes decimal text (an optional `-`,
+digits, an optional fraction and exponent, such as `1.5`, `-2` or `2e3`) and is
+converted to a finite number; a `v.boolean()` param takes exactly `true` or
+`false` and is converted to a boolean. Optional fields are converted too.
+Inside a union or array they are not converted, so a union param such as
+`v.union(v.boolean(), v.literal("auto"))` matches only its string members.
+
+A parameter that fails `args` returns the JSON-RPC error
+`MCP error -32602: Input validation error: Invalid arguments for resource <uri template>: <zod message> at <param>`
+and the query does not run. A `_`-prefixed parameter or an error from the
+query returns "Resource read failed", with the real error neither sent nor
+logged.
 
 ### Tool-list pagination
 
