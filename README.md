@@ -359,10 +359,10 @@ run time. The `./identity` errors are `ConvexError`s: the code is in
   Send `cursor: ""` to get the first page.
 - Resources are registered as URI templates: they are listed by
   `resources/templates/list`, not `resources/list`.
-- Resource URI parameters are strings. Only `v.string()`, `v.id()`, string
-  literals, `v.int64()` and `v.bytes()` params work; a resource whose `args`
-  use `v.float64()` or `v.boolean()` is accepted at creation, but every read
-  fails with "Resource read failed".
+- Resource URI parameters are strings: declare them with `v.string()`,
+  `v.id()`, string literals, `v.int64()` or `v.bytes()`. A resource whose
+  `args` use `v.float64()` or `v.boolean()` is accepted at creation, but every
+  read fails with "Resource read failed".
 - `createMCPServer` reports `name` `"convex-mcp"` and `version` `"0.1.0"` in
   `serverInfo` unless you set them; `version` is the MCP server's own version,
   not this package's.
