@@ -174,7 +174,7 @@ per-instance secret. An `onResourceRead` hook is not provided.
 | `convexUrl`       | `string`                      | Convex deployment URL. Defaults to `CONVEX_URL` / `NEXT_PUBLIC_CONVEX_URL`.                                                                                                                                                               |
 | `client`          | `ConvexClient`                | Inject a client (e.g. `convex-test`'s `t`) instead of a URL. Mutually exclusive with `auth.convexToken`.                                                                                                                                  |
 | `hooks`           | `LifecycleHooks`              | `onToolCall(ctx)` fires `before`/`success`/`error`; `before` may `abort` or inject server-side args via `extendArgs`. When a tool sets `onError`, only `onError` runs in the error phase.                                                 |
-| `name`, `version` | `string`                      | Server identity advertised over MCP.                                                                                                                                                                                                      |
+| `name`, `version` | `string`                      | Server identity reported in the `initialize` response `serverInfo`. Defaults: `name` `"convex-mcp"`, `version` `"0.1.0"` (the MCP server's own version, not this package's).                                                              |
 | `pagination`      | `PaginationConfig`            | Opt-in `tools/list` pagination — see below.                                                                                                                                                                                               |
 
 ### query / mutation / action
@@ -193,22 +193,32 @@ Convex function reference as a typed `ToolDef`.
 ### resource(ref, options)
 
 Wraps a Convex query reference as an MCP resource
-(`{ args?, description? }`). URI parameters are parsed through `args` before
-dispatch. Parameter names starting with `_` are rejected before dispatch
-(reserved for server-injected context). Resources run no lifecycle hooks, so
+(`{ args?, description? }`). The key in `ServerConfig.resources` is registered
+as a URI template, so resources appear in `resources/templates/list`, not in
+`resources/list` (which returns no entries). URI parameters are parsed through
+`args` before dispatch. Parameter names starting with `_` are rejected before
+dispatch (reserved for server-injected context). Resources run no lifecycle hooks, so
 authorize inside the backing function. JSON `int64` strings become `bigint`,
 base64 `bytes` strings become `ArrayBuffer`, and native Convex results use
 Convex's lossless tagged JSON encoding.
+
+URI parameters are always strings. Declare each one with a validator that
+accepts a string: `v.string()`, `v.id()`, a string literal (or a union of
+them), `v.int64()` (converted to `bigint`) or `v.bytes()` (converted to
+`ArrayBuffer`). A resource whose `args` use `v.float64()` or `v.boolean()` is
+accepted by `createMCPServer`, but every read of it fails with
+"Resource read failed"; parameters are not converted to numbers or booleans.
 
 ### Tool-list pagination
 
 `PaginationConfig` opts `tools/list` into cursor pagination. `tools/list`
 **without** a cursor always returns ALL tools (backward-compatible); pagination
-activates only when the client sends a cursor.
+activates only when the client sends a cursor. Send `cursor: ""` to get the
+first page, then each `nextCursor` until none is returned.
 
 | Field               | Type      | Description                                                                                                     |
 | ------------------- | --------- | --------------------------------------------------------------------------------------------------------------- |
-| `pageSize`          | `number`  | Tools per page (≥ 1).                                                                                           |
+| `pageSize`          | `number`  | Tools per page; an integer ≥ 1, otherwise `createMCPServer` throws.                                             |
 | `twoPhaseDiscovery` | `boolean` | Enables the non-standard `tools/list_summary` + `tools/describe` methods (custom agents only). Default `false`. |
 
 Cursors are HMAC-signed per server instance and verified in constant time.
@@ -220,6 +230,21 @@ Cursors are HMAC-signed per server instance and verified in constant time.
 (`"query" | "mutation" | "action"`), `LifecycleHooks`, `OnCallResult`,
 `PaginationConfig`, `ResourceDef`, `ServerConfig`, `ToolDef`, `ToolPage` and
 `ToolSummary`.
+
+`CallContext` fields:
+
+| Field        | Description                                                                                           |
+| ------------ | ----------------------------------------------------------------------------------------------------- |
+| `phase`      | `"before"`, `"success"` or `"error"`.                                                                 |
+| `requestId`  | ID of the HTTP request; also sent as the `X-Request-Id` response header.                              |
+| `startedAt`  | `Date.now()` when the call started.                                                                   |
+| `durationMs` | Milliseconds from `startedAt` until the Convex call returned or failed; set in `success` and `error`. |
+| `toolName`   | The tool's key in `ServerConfig.tools`.                                                               |
+| `toolDef`    | The tool definition without `ref` and `onError`.                                                      |
+| `args`       | The validated request args (before `extendArgs` is merged).                                           |
+| `result`     | The Convex result; set in `success`.                                                                  |
+| `error`      | The thrown error; set in `error`.                                                                     |
+| `apiKey`     | The raw bearer key. Sensitive: use it to authorize, never forward it in args, logs or responses.      |
 
 ### Validator utilities
 
@@ -265,11 +290,18 @@ calls `betterAuth({...})`.
 An exact configured preview pattern must have the shape
 `https://app-*-org.example.com`: one wildcard inside a prefixed/suffixed first
 label and at least two fixed suffix labels. The host must trust all deployments
-matched by Better Auth's wildcard semantics: in Better Auth 1.7.12 a `*` is
-matched without a path separator and can span `.`, so use a fixed suffix only
-you control. These are syntax helpers, not proof of ownership or CSRF
-protection. Returning undefined leaves host/provider defaults in effect; it is
+matched by Better Auth's wildcard semantics: per the Better Auth 1.7.12 source,
+a `*` is matched without a path separator and can span `.`, so use a fixed
+suffix only you control. These are syntax helpers, not proof of ownership or
+CSRF protection. Returning undefined leaves host/provider defaults in effect; it is
 not a deny-all trusted-origin configuration.
+
+Origins must already be in canonical form: lowercase scheme and host, no
+default port (`:443`, or `:80` for localhost), and an ASCII or punycode host
+(`https://xn--bcher-kva.example`, not `https://bücher.example`). One trailing
+`/` and surrounding spaces are allowed. Other spellings, such as
+`https://Example.com` or `https://example.com:443`, return undefined, so
+`trustedOriginsFromList` and `trustedOriginsFromCsv` leave them out.
 
 Exported type: `CookieSettings` (the return of `cookieSettingsForSite`).
 
@@ -320,8 +352,13 @@ and actions do not provide uniqueness. Retargeting requires host authorization
 of both identities, bounded pagination, conflict resolution and continuation.
 `retargetRows` trusts the outcome each callback returns. Failures propagate
 without starting later callbacks; rollback depends on the host transaction. The
-host owns observability; helpers do not log identity data or tokens. Tests are
-convex-test mock integration, not real Better Auth or backend OCC proof.
+host owns observability; helpers do not log identity data or tokens. The test
+suite (run in CI) uses convex-test mocks, not real Better Auth or backend OCC.
+Two manual scripts in the repository, run locally and not in CI, use a real
+local Convex backend: one runs concurrent bootstrap mutations (indexed OCC), the
+other signs in with real Better Auth and sends the issued JWTs to `./identity`
+functions; see
+[READINESS.md](https://github.com/vllnt/convex-helpers/blob/main/docs/READINESS.md#real-better-auth-loginjwt-proof).
 
 ```ts
 import { nullThrows } from "@vllnt/convex-helpers";
@@ -405,18 +442,19 @@ The following modules are on the roadmap but not yet shipped. See
 [ROADMAP.md](https://github.com/vllnt/convex-helpers/blob/main/ROADMAP.md) (in
 the repository, not the package) for milestones and exit criteria.
 
-| Module            | Status                   | Description                                               |
-| ----------------- | ------------------------ | --------------------------------------------------------- |
-| `./builders`      | shipped (`0.2.0`)        | composition helpers remain planned                        |
-| `./errors`        | [planned]                | `AppError(code)` + HTTP-status map + `toResponse()`       |
-| `./auth`          | shipped as `./identity`  | see `./identity`                                          |
-| `./env`           | [planned]                | `defineEnv(zodSchema)` cold-start validation              |
-| `./tracing`       | [planned]                | span emit + `traceparent` propagation                     |
-| `./testing`       | [planned]                | `register(t)` + fixture factories + `withIdentity`        |
-| `./relationships` | [planned]                | `getOneFrom`/`getManyFrom`/`getManyVia` + `asyncMap`      |
-| `./validators`    | partly shipped (`0.2.0`) | `partial`/`typedV`/`literals` + zod bridge remain planned |
-| `./pagination`    | [planned]                | `getPage`/`mergedStream`/`filter`                         |
-| `./rls`           | [planned]                | `RowLevelSecurity` reader/writer wrappers                 |
-| `./triggers`      | [planned]                | atomic in-transaction denormalization / cascade delete    |
-| `./http`          | [planned]                | `corsRouter`/`jsonResponse`/`resolveBearer`/hono adapter  |
-| `./react`         | [planned]                | optional tree-shakeable front-end tooling layer           |
+| Module            | Status    | Description                                                                          |
+| ----------------- | --------- | ------------------------------------------------------------------------------------ |
+| `./errors`        | [planned] | `AppError(code)` + HTTP-status map + `toResponse()`                                  |
+| `./auth`          | [planned] | provider-agnostic `getCurrentSubject(ctx)` (`requireIdentity` ships in `./identity`) |
+| `./env`           | [planned] | `defineEnv(zodSchema)` cold-start validation                                         |
+| `./tracing`       | [planned] | span emit + `traceparent` propagation                                                |
+| `./testing`       | [planned] | `register(t)` + fixture factories + `withIdentity`                                   |
+| `./relationships` | [planned] | `getOneFrom`/`getManyFrom`/`getManyVia`                                              |
+| `./pagination`    | [planned] | `getPage`/`mergedStream`/`filter`                                                    |
+| `./rls`           | [planned] | `RowLevelSecurity` reader/writer wrappers                                            |
+| `./triggers`      | [planned] | atomic in-transaction denormalization / cascade delete                               |
+| `./http`          | [planned] | `corsRouter`/`jsonResponse`/`resolveBearer`/hono adapter                             |
+| `./react`         | [planned] | optional tree-shakeable front-end tooling layer                                      |
+
+Also planned for shipped entries: composition helpers for `./builders`, and
+`partial`/`typedV`/`literals` plus a zod bridge for `./validators`.

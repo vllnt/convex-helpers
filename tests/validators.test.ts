@@ -44,6 +44,56 @@ describe("convertValidator", () => {
     expect(schema.description).toContain("64-bit integer");
   });
 
+  describe("malformed int64 strings return the decimal-string issue instead of throwing", () => {
+    const malformed = ["12abc", "1.5", "0x10", "1e3"];
+    const message = "Expected a decimal 64-bit integer string";
+    const schemas = {
+      plain: convertValidator(makeValidator("int64")),
+      optional: convertValidator(makeOptionalValidator("int64")),
+      object: convertValidator(makeValidator("object", {
+        fields: { value: makeValidator("int64") },
+      })),
+      array: convertValidator(makeValidator("array", {
+        element: makeValidator("int64"),
+      })),
+    };
+    const wrap = {
+      plain: (value: string) => value,
+      optional: (value: string) => value,
+      object: (value: string) => ({ value }),
+      array: (value: string) => [value],
+    };
+
+    for (const [shape, schema] of Object.entries(schemas)) {
+      for (const value of malformed) {
+        it(`${shape}: ${JSON.stringify(value)}`, () => {
+          const result = schema.safeParse(wrap[shape as keyof typeof wrap](value));
+          expect(result.success).toBe(false);
+          expect(result.error?.issues.map((issue) => issue.message)).toEqual([message]);
+        });
+      }
+    }
+
+    it("keeps the range check for well-formed strings", () => {
+      const result = schemas.plain.safeParse("-9223372036854775809");
+      expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+        "Integer is outside the signed 64-bit range",
+      ]);
+      expect(schemas.plain.parse("9223372036854775807")).toBe((1n << 63n) - 1n);
+    });
+  });
+
+  it("returns the base64 issue for invalid bytes strings instead of throwing", () => {
+    const schema = convertValidator(makeValidator("bytes"));
+    for (const value of ["%%%", "A", "AQID=", " 7"]) {
+      const result = schema.safeParse(value);
+      expect(result.success).toBe(false);
+      expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+        "Expected base64-encoded binary data",
+      ]);
+    }
+  });
+
   it("converts base64 JSON strings to ArrayBuffer values", () => {
     const schema = convertValidator(makeValidator("bytes"));
     expect(new Uint8Array(schema.parse("AQID") as ArrayBuffer)).toEqual(

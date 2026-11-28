@@ -26,7 +26,9 @@ const MAX_TIMEOUT_MS = 2_147_483_647;
 /**
  * Underscore-prefixed arg keys are reserved for framework-injected context.
  *
- * - Request args containing `_*` keys are rejected before hook invocation.
+ * - The MCP SDK drops undeclared args, `_*` keys included, before the
+ *   handler runs; any that still reach the handler (e.g. a custom transport)
+ *   are rejected before hook invocation.
  * - Tool-level Convex validators MAY declare `_*` fields so the action
  *   handler receives server-injected values; these are stripped from the
  *   published JSON Schema so MCP clients neither see nor pass them.

@@ -132,6 +132,25 @@ describe("createMCPServer", () => {
     expect(handler.GET).toBeTypeOf("function");
     expect(handler.POST).toBeTypeOf("function");
   });
+
+  it("reports name and version defaults or the configured values in serverInfo", async () => {
+    const initialize = {
+      capabilities: {},
+      clientInfo: { name: "test-client", version: "1.0.0" },
+      protocolVersion: "2025-06-18",
+    };
+    const defaults = await parseSSEResponse(
+      await createTestServer().handler().POST(mcpRequest("initialize", initialize)),
+    );
+    expect(defaults.result.serverInfo).toMatchObject({ name: "convex-mcp", version: "0.1.0" });
+
+    const custom = await parseSSEResponse(
+      await createTestServer({ name: "tasks-mcp", version: "2.3.4" })
+        .handler()
+        .POST(mcpRequest("initialize", initialize)),
+    );
+    expect(custom.result.serverInfo).toMatchObject({ name: "tasks-mcp", version: "2.3.4" });
+  });
 });
 
 describe("handler", () => {
@@ -167,6 +186,27 @@ describe("handler", () => {
 
     const response = await handler.POST(request);
     expect(response.status).toBe(401);
+  });
+
+  it("returns 401 when auth.validate never settles within 10 seconds", async () => {
+    vi.useFakeTimers();
+    try {
+      const validate = vi.fn(() => new Promise<boolean>(() => {}));
+      const handler = createTestServer({ auth: { validate } }).handler();
+      let settled = false;
+      const pending = handler.POST(mcpRequest("tools/list")).finally(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(9_999);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      const response = await pending;
+      expect(response.status).toBe(401);
+      expect(await response.json()).toEqual({ error: "Authentication failed." });
+      expect(validate).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("returns 415 for wrong Content-Type (AC-E4)", async () => {
@@ -251,6 +291,34 @@ describe("handler", () => {
     expect(mockClient.action).toHaveBeenCalled();
   });
 
+  it("returns the documented -32602 input error for malformed int64 strings", async () => {
+    const server = createTestServer({
+      tools: {
+        count: query(null, {
+          args: makeValidator("object", {
+            fields: { value: makeValidator("int64") },
+          }),
+        }),
+      },
+    });
+    const handler = server.handler();
+    const mockClient = await getMockClient();
+
+    for (const value of ["12abc", "1.5", "0x10", "1e3"]) {
+      const response = await handler.POST(mcpRequest("tools/call", {
+        name: "count",
+        arguments: { value },
+      }));
+      const data = await parseSSEResponse(response);
+      expect(data.result.isError).toBe(true);
+      const text: string = data.result.content[0].text;
+      expect(text).toMatch(/^MCP error -32602: Input validation error/u);
+      expect(text).toContain("Expected a decimal 64-bit integer string");
+      expect(text).not.toContain("BigInt");
+    }
+    expect(mockClient.query).not.toHaveBeenCalled();
+  });
+
   it("returns generic error when Convex throws (AC-E2)", async () => {
     const server = createTestServer();
     const handler = server.handler();
@@ -297,6 +365,26 @@ describe("GET handler", () => {
 
     const response = await handler.GET(request);
     expect([200, 405]).toContain(response.status);
+  });
+});
+
+describe("resource listing", () => {
+  it("lists resources as URI templates, not in resources/list", async () => {
+    const handler = createTestServer().handler();
+
+    const listed = await parseSSEResponse(await handler.POST(mcpRequest("resources/list")));
+    expect(listed.result.resources).toEqual([]);
+
+    const templates = await parseSSEResponse(
+      await handler.POST(mcpRequest("resources/templates/list")),
+    );
+    expect(templates.result.resourceTemplates).toEqual([
+      expect.objectContaining({
+        description: "Get a space",
+        mimeType: "application/json",
+        uriTemplate: "space://{id}",
+      }),
+    ]);
   });
 });
 

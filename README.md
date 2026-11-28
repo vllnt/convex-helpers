@@ -336,10 +336,14 @@ run time. The `./identity` errors are `ConvexError`s: the code is in
 - `isAnonymous` is `true` only for a literal `true` claim; `false` does not
   prove a verified account.
 - `./better-auth` checks origin syntax, not who owns a deployment. A
-  `previewPattern` wildcard can match across `.` in Better Auth 1.7.12, so use a
-  fixed suffix only you can register. When no extra origin survives the list
-  helpers return `undefined` and Better Auth keeps its defaults. SameSite=None
-  cookies are not CSRF protection.
+  `previewPattern` wildcard can match across `.` (per the Better Auth 1.7.12
+  source), so use a fixed suffix only you can register. When no extra origin
+  survives the list helpers return `undefined` and Better Auth keeps its
+  defaults. SameSite=None cookies are not CSRF protection.
+- `parseTrustedOrigin` accepts only canonical origins: lowercase host, no
+  default port such as `:443`, ASCII or punycode host. Other spellings, such as
+  `https://Example.com`, return `undefined`, so `trustedOriginsFromList` and
+  `trustedOriginsFromCsv` leave them out.
 - `./validators` refuses the `db` option (`v.id` checks for a string), matches
   object fields as own properties only, and rejects arrays and class instances
   for `v.record`.
@@ -352,6 +356,16 @@ run time. The `./identity` errors are `ConvexError`s: the code is in
   callbacks stop being awaited after 10 seconds but are not cancelled. Never
   forward `CallContext.apiKey` in args. The library logs nothing.
 - `tools/list` without a cursor returns every tool, even with `pagination` set.
+  Send `cursor: ""` to get the first page.
+- Resources are registered as URI templates: they are listed by
+  `resources/templates/list`, not `resources/list`.
+- Resource URI parameters are strings: declare them with `v.string()`,
+  `v.id()`, string literals, `v.int64()` or `v.bytes()`. A resource whose
+  `args` use `v.float64()` or `v.boolean()` is accepted at creation, but every
+  read fails with "Resource read failed".
+- `createMCPServer` reports `name` `"convex-mcp"` and `version` `"0.1.0"` in
+  `serverInfo` unless you set them; `version` is the MCP server's own version,
+  not this package's.
 - Undeclared tool args, `_` keys included, are dropped silently: the MCP SDK
   parses tool args with the schema built from `args`.
 - `createMCPServer` throws when neither `convexUrl`, `client`, `CONVEX_URL` nor
@@ -364,9 +378,11 @@ run time. The `./identity` errors are `ConvexError`s: the code is in
 ## Compatibility
 
 - `convex` `^1.45.0` (peer). CI tests with the lockfile versions (convex
-  1.51.0); the test suite and a packed-consumer type-check were also run by hand
-  at convex 1.45.0, `@modelcontextprotocol/sdk` 1.29.0 and `zod` 4.3.6 for
-  0.2.1.
+  1.51.0). A consumer project installed canary `0.2.1-canary.29170b8` (0.3.0
+  without the `int64` fix) and ran every entry against a real local Convex backend at the newest (convex 1.51.0,
+  `@modelcontextprotocol/sdk` 1.32.2, `zod` 4.6.7, Node 24) and the lowest
+  (convex 1.45.0, `@modelcontextprotocol/sdk` 1.29.0, `zod` 4.3.6, Node 20)
+  versions in range.
 - `./mcp` only: `@modelcontextprotocol/sdk` `^1.29.0` and `zod` `^4.3.6`
   (optional peers). Other entries import neither.
 - ESM only, no CommonJS build. Node.js 20 or later (the `convex` peer needs it;
@@ -395,15 +411,16 @@ pnpm test:coverage
 
 Tests use [vitest](https://vitest.dev) with the node environment. 100% coverage
 is enforced via the repository's vitest coverage thresholds. Identity
-integration tests use **convex-test mocks**. Two local scripts in the repository
-(not in the npm package) run against a real anonymous Convex backend (no cloud
-account):
+integration tests use **convex-test mocks**. Two manual scripts in the
+repository (not in the npm package, not run in CI) run locally against a real
+anonymous Convex backend (no cloud account):
 [`scripts/local-identity-proof.mjs`](https://github.com/vllnt/convex-helpers/blob/main/scripts/local-identity-proof.mjs)
 (16 concurrent bootstrap mutations with a synthetic identity, one row; tests
 indexed OCC, not login) and
 [`scripts/better-auth-proof.mjs`](https://github.com/vllnt/convex-helpers/blob/main/scripts/better-auth-proof.mjs)
 (real Better Auth sign-in, anonymous and email/password, then the issued JWTs
-sent to Convex functions that use `./identity` and `./better-auth`; see
+sent to Convex functions that use `./identity`; from `./better-auth` it uses
+only `trustedOriginsFromCsv`; see
 [docs/READINESS.md](https://github.com/vllnt/convex-helpers/blob/main/docs/READINESS.md#real-better-auth-loginjwt-proof)
 for versions and assertions). Consuming apps must verify their own auth
 integration independently.
@@ -421,7 +438,8 @@ integration independently.
   a parity test runs both packages on the same convex-test backend.
 - [`@convex-dev/better-auth`](https://www.npmjs.com/package/@convex-dev/better-auth)
   — the Better Auth component. `./better-auth` builds the origin and cookie
-  options passed to it; the repository's Better Auth proof script runs both.
+  options passed to it; the repository's Better Auth proof script runs it with
+  `trustedOriginsFromCsv`.
 - [`@vllnt/eslint-config`](https://oss.vllnt.com/packages/eslint-config) — the
   lint rules this repository's code is checked with (development only).
 - [`@vllnt/typescript`](https://oss.vllnt.com/packages/typescript) — the

@@ -283,6 +283,42 @@ describe("lifecycle hooks", () => {
     },
   );
 
+  it("accepts the largest query timeout setTimeout honors (2147483647 ms)", () => {
+    expect(() =>
+      createMCPServer({
+        auth: { validate: async () => true },
+        convexUrl: MOCK_CONVEX_URL,
+        tools: {
+          longest: query(null, {
+            args: makeValidator("object", { fields: {} }),
+            timeout: 2_147_483_647,
+          }),
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it("query timeout 0 is accepted and disables the timeout", async () => {
+    const mockClient = await getMockClient();
+    // A 0 ms timer would fire before this 20 ms call resolves.
+    mockClient.query.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve("late"), 20)),
+    );
+    const server = createMCPServer({
+      auth: { validate: async () => true },
+      convexUrl: MOCK_CONVEX_URL,
+      tools: {
+        untimed: query(null, { args: makeValidator("object", { fields: {} }), timeout: 0 }),
+      },
+    });
+
+    const data = await parseSSEResponse(
+      await server.handler().POST(mcpRequest("tools/call", { name: "untimed", arguments: {} })),
+    );
+    expect(data.result.isError).toBeUndefined();
+    expect(data.result.content[0].text).toBe('"late"');
+  });
+
   it("timeout-enabled tool call succeeds when resolved in time", async () => {
     const server = createMCPServer({
       auth: { validate: async () => true },
