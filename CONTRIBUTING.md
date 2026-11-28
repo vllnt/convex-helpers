@@ -20,6 +20,7 @@ Tests use [vitest](https://vitest.dev) with the node environment:
 pnpm test          # single run
 pnpm test:watch    # watch mode
 pnpm test:coverage # coverage report (must be 100%)
+pnpm test:package  # after pnpm build: import and type-check the packed tarball
 ```
 
 ## Code Style
@@ -51,9 +52,9 @@ trusted publishing and provenance; nothing is published from a local machine.
   matching `## [X.Y.Z]` entry to `CHANGELOG.md`, then push the tag `vX.Y.Z` on
   that `main` commit. The workflow refuses a tag that is not on `main` or does
   not match both files.
-- Release jobs require lint, typechecks, build and 100% coverage. Release notes
-  are taken from the matching `CHANGELOG.md` entry and passed as a file, never
-  interpolated into shell.
+- Release jobs require lint, typechecks, build, 100% coverage and the package
+  test. Release notes are taken from the matching `CHANGELOG.md` entry and
+  passed as a file, never interpolated into shell.
 - If creating the GitHub release fails after npm publication, re-run the job: it
   skips an already-published version. Never republish an immutable version or
   move an existing tag.
