@@ -33,8 +33,12 @@ while IFS= read -r name; do
 done < <(compgen -e | grep -iE '^p?npm_config_')
 
 # Transitive dependencies resolve fresh in the temp project; keep the repo's
-# release-age gate on them.
-release_age="$(node -p 'require("./package.json").pnpm?.minimumReleaseAge ?? 0')"
+# release-age gate on them. pnpm 10 reads it from pnpm-workspace.yaml only.
+[[ -f pnpm-workspace.yaml ]] ||
+  fail "pnpm-workspace.yaml is missing; it must set minimumReleaseAge"
+release_age="$(sed -nE 's/^minimumReleaseAge: ([0-9]+)$/\1/p' pnpm-workspace.yaml)"
+[[ "$release_age" =~ ^[0-9]+$ ]] ||
+  fail "pnpm-workspace.yaml has no single 'minimumReleaseAge: <minutes>' line"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT

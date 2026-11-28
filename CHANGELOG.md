@@ -60,6 +60,10 @@ and this project adheres to
   https://oss.vllnt.com/packages/convex-helpers.
 - Tooling: every push to `main` touching the package publishes a canary (no
   repository-variable gate), and docs-only changes now trigger it.
+- Tooling: the 7-day minimum release age now sits in
+  [`pnpm-workspace.yaml`](https://github.com/vllnt/convex-helpers/blob/main/pnpm-workspace.yaml),
+  where pnpm 10 reads it (the `package.json` `pnpm` field ignored it), and
+  Renovate follows the same 7-day rule with `@vllnt/*` exempt.
 - Development dependencies: `convex` 1.51.0, `convex-test` 0.0.73, `vitest` and
   `@vitest/coverage-v8` 5.1.1, `@vllnt/typescript` 3.0.0 (with
   `exactOptionalPropertyTypes` left off so the published types do not change),
