@@ -299,7 +299,7 @@ not a deny-all trusted-origin configuration.
 Origins must already be in canonical form: lowercase scheme and host, no
 default port (`:443`, or `:80` for localhost), and an ASCII or punycode host
 (`https://xn--bcher-kva.example`, not `https://bücher.example`). One trailing
-`/` and surrounding whitespace are allowed. Other spellings, such as
+`/` and surrounding spaces are allowed. Other spellings, such as
 `https://Example.com` or `https://example.com:443`, return undefined, so
 `trustedOriginsFromList` and `trustedOriginsFromCsv` leave them out.
 

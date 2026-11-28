@@ -378,8 +378,8 @@ run time. The `./identity` errors are `ConvexError`s: the code is in
 ## Compatibility
 
 - `convex` `^1.45.0` (peer). CI tests with the lockfile versions (convex
-  1.51.0). For 0.3.0, a consumer project installed the published canary and ran
-  every entry against a real local Convex backend at the newest (convex 1.51.0,
+  1.51.0). A consumer project installed canary `0.2.1-canary.29170b8` (0.3.0
+  without the `int64` fix) and ran every entry against a real local Convex backend at the newest (convex 1.51.0,
   `@modelcontextprotocol/sdk` 1.32.2, `zod` 4.6.7, Node 24) and the lowest
   (convex 1.45.0, `@modelcontextprotocol/sdk` 1.29.0, `zod` 4.3.6, Node 20)
   versions in range.

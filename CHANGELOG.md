@@ -36,8 +36,8 @@ and this project adheres to
   [`docs/READINESS.md`](https://github.com/vllnt/convex-helpers/blob/main/docs/READINESS.md)
   (maintainer publication notes).
 - The peer ranges are unchanged. The test suite was run with the lockfile
-  versions; a consumer project installed the published canary and ran every
-  entry against a real local Convex backend at both the newest (convex 1.51.0,
+  versions; a consumer project installed canary `0.2.1-canary.29170b8` (before
+  the `int64` fix below) and ran every entry against a real local Convex backend at both the newest (convex 1.51.0,
   `@modelcontextprotocol/sdk` 1.32.2, `zod` 4.6.7, Node 24) and the lowest
   (convex 1.45.0, `@modelcontextprotocol/sdk` 1.29.0, `zod` 4.3.6, Node 20)
   versions in range.
