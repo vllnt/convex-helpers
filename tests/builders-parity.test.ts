@@ -102,4 +102,14 @@ describe("builders parity with convex-helpers 0.1.136 (convex-test)", () => {
     expect(ours).toStrictEqual(theirs);
     expect(ours).toMatchObject({ result: "k7" });
   });
+
+  it("customAction rejects args its validator does not accept", async () => {
+    const { ours, theirs } = await bothWays(async (t, fns) =>
+      outcome(() => t.action(fns.keyed, { n: "seven" })),
+    );
+    expect(ours).toStrictEqual(theirs);
+    expect(ours).toMatchObject({
+      result: { error: expect.stringContaining("Validator error") },
+    });
+  });
 });

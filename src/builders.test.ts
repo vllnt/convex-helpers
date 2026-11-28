@@ -5,7 +5,7 @@ import {
 } from "convex/server";
 import { v } from "convex/values";
 import * as theirs from "convex-helpers/server/customFunctions";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import * as ours from "./builders.js";
 
@@ -132,6 +132,29 @@ describe("builders argument merging (parity with convex-helpers 0.1.136)", () =>
       ctx: { base: 1, extra: true },
     });
   });
+
+  it.each(Object.entries(implementations))(
+    "%s: customMutation does not call onSuccess when the handler throws",
+    async (_name, impl) => {
+      const onSuccess = vi.fn();
+      const definition = impl.customMutation(
+        capture as unknown as typeof mutationGeneric,
+        {
+          args: {},
+          input: () => ({ args: {}, ctx: {}, onSuccess }),
+        },
+      )({
+        args: {},
+        handler: () => {
+          throw new Error("handler failed");
+        },
+      }) as unknown as Captured;
+      await expect(definition.handler({}, {})).rejects.toThrow(
+        "handler failed",
+      );
+      expect(onSuccess).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("builders types (parity with convex-helpers 0.1.136)", () => {
