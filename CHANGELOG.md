@@ -6,72 +6,84 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-11-28
 
-## [0.2.1] - 2026-11-27
-
-### Fixed
+### Changed
 
 - `./validators`: `validate` and `parse` reject arrays and class instances
   (`Date`, `Map`, ...) for `v.record(...)` validators, as Convex and
   `convex-helpers` 0.1.136 do. They were accepted, and `parse` turned an array
-  into an object. The error reads `` Expected `record`, got `Array` ``.
+  into an object. The error reads
+  `` Validator error for <path>: Expected `record`, got `Array` `` (`for <path>`
+  is left out at the top level; the class name replaces `Array` for `Date`,
+  `Map`, ...). Pass a plain object, such as `Object.fromEntries(map)`.
 - `./validators` reads declared object fields as own properties only, as
   `convex-helpers` 0.1.136 does. An inherited value no longer satisfies a
   declared field, and an absent optional field named like an `Object.prototype`
   member (`constructor`, `toString`) is no longer read from the prototype.
-- Shipped docs and source comments no longer name repository-only files (proof
-  scripts, tests, the vitest config, maintainer publication notes) without a
-  GitHub link.
-
-### Added
-
-- The npm package now states that its bundled docs (`docs/API.md`, `README.md`,
-  `CHANGELOG.md`, `llms.txt`) match the installed version: a "For coding agents"
-  note in the README and `llms.txt`, relative `llms.txt` links to the shipped
-  files, an Ecosystem link and a Related packages section. `docs/API.md` now
-  lists the exported types of each entry.
-- `pnpm check:package` (run by `pnpm lint`) fails when the tarball misses a
-  required doc file or ships contributor or internal files; when a relative link
-  or `#anchor` in any shipped Markdown doc does not resolve inside it (inline
-  links with or without a title, reference definitions and HTML `href`/`src`;
-  code is ignored); or when a shipped file names a repository file that is not
-  packed. A test keeps `docs/API.md` in step with every entry's exports and
-  checks that the docs name no internal type.
-- README for coding agents: when to use, install and quick start in the first
-  40 lines, a table of every export, common tasks, every error text with its
-  cause and fix, limits, compatibility and links. `llms.txt` carries the same
-  summary and links to the reference and the errors table. Every export has a
-  TSDoc summary. A test checks the README layout, the export and error tables,
-  links, the footer and the `llms.txt` Ecosystem block, and type-checks every
-  README example against the built package.
-
-### Changed
-
-- `package.json` `description` and `keywords` now name what the package does
-  and its stack.
+  Declare every field the validator checks as an own property of the value.
+- `engines.node` is now `>=20` (0.2.0 declared `>=18`): Node 20 is the lowest
+  Node that the lowest supported `convex` (1.45.0) runs on. Node 18 is no longer
+  supported; use Node 20 or newer.
 - `./builders` and `./validators` parity baseline is now `convex-helpers`
   0.1.136 (`customFunctions` is unchanged since 0.1.124). Upstream now also
   treats inherited names such as `constructor` as unknown object fields, so that
-  is no longer a difference; the `db` option remains refused.
+  is no longer a difference; the `db` option remains refused. `NOTICE` names
+  0.1.136 and now also credits the `CustomCtx` and `Registration` types.
+- `package.json` `description` and `keywords` now name what the package does
+  and its stack. `homepage` is now https://oss.vllnt.com/packages/convex-helpers.
 - The tarball no longer ships
   [`docs/READINESS.md`](https://github.com/vllnt/convex-helpers/blob/main/docs/READINESS.md)
-  (maintainer publication notes). `homepage` is now
-  https://oss.vllnt.com/packages/convex-helpers.
-- Tooling: every push to `main` touching the package publishes a canary (no
-  repository-variable gate), and docs-only changes now trigger it.
-- Tooling: the 7-day minimum release age now sits in
-  [`pnpm-workspace.yaml`](https://github.com/vllnt/convex-helpers/blob/main/pnpm-workspace.yaml),
-  where pnpm 10 reads it (the `package.json` `pnpm` field ignored it), and
-  Renovate follows the same 7-day rule with `@vllnt/*` exempt.
+  (maintainer publication notes).
+- The peer ranges are unchanged. The test suite was run with the lockfile
+  versions; a consumer project installed the published canary and ran every
+  entry against a real local Convex backend at both the newest (convex 1.51.0,
+  `@modelcontextprotocol/sdk` 1.32.2, `zod` 4.6.7, Node 24) and the lowest
+  (convex 1.45.0, `@modelcontextprotocol/sdk` 1.29.0, `zod` 4.3.6, Node 20)
+  versions in range.
 - Development dependencies: `convex` 1.51.0, `convex-test` 0.0.73, `vitest` and
   `@vitest/coverage-v8` 5.1.1, `@vllnt/typescript` 3.0.0 (with
   `exactOptionalPropertyTypes` left off so the published types do not change),
-  pnpm 10.34.9. The peer ranges are unchanged. CI tests with the lockfile
-  versions (convex 1.51.0); the test suite and a packed-consumer type-check
-  were also run by hand at `convex` 1.45.0, `@modelcontextprotocol/sdk` 1.29.0
-  and `zod` 4.3.6.
-- `engines.node` is now `>=20`, matching the `convex` peer's own requirement.
+  pnpm 10.34.9.
+- Tooling: every push to `main` touching the package or its shipped docs
+  publishes a canary; the 7-day minimum release age moved to
+  [`pnpm-workspace.yaml`](https://github.com/vllnt/convex-helpers/blob/main/pnpm-workspace.yaml),
+  where pnpm 10 reads it.
+
+### Added
+
+- The npm package states that its bundled docs (`docs/API.md`, `README.md`,
+  `CHANGELOG.md`, `llms.txt`) match the installed version, and `llms.txt` links
+  to the shipped files.
+- README for coding agents: when to use, install and quick start in the first
+  40 lines, a table of every export, common tasks, every error text with its
+  cause and fix, limits, compatibility and links; `llms.txt` carries the same
+  summary. `docs/API.md` lists the exported types of each entry. Every export
+  has a TSDoc summary.
+- `docs/API.md` and the README now state the `createMCPServer` `name` and
+  `version` defaults (`"convex-mcp"`, `"0.1.0"`: the MCP server's own version),
+  every `CallContext` field, that `cursor: ""` returns the first page, that
+  `pageSize` must be an integer, that resources are listed by
+  `resources/templates/list`, which resource URI param validators work, and
+  that `parseTrustedOrigin` accepts only canonical origins.
+- Tests and CI: a README layout test, `pnpm check:package` (tarball contents and
+  links) and `pnpm test:package` (imports and type-checks the packed tarball)
+  run in CI and before publish.
+
+### Fixed
+
+- `./mcp`: a `v.int64()` arg sent as a malformed decimal string (`"12abc"`,
+  `"1.5"`, `"1e3"`) now returns the documented
+  `MCP error -32602: Input validation error: ... Expected a decimal 64-bit integer string`
+  instead of a `Cannot convert ... to a BigInt` error, and
+  `convertValidator(v.int64()).safeParse(...)` returns that issue instead of
+  throwing.
+- Docs: undeclared tool args, `_`-prefixed ones included, are dropped by the MCP
+  SDK before hooks run; they are not rejected, as 0.2.0's
+  `OnCallResult.extendArgs` doc said.
+- Shipped docs and source comments no longer name repository-only files (proof
+  scripts, tests, the vitest config, maintainer publication notes) without a
+  GitHub link.
 
 ## [0.2.0] - 2026-11-26
 

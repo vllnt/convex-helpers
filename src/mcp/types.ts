@@ -49,10 +49,12 @@ export type ServerConfig = {
   client?: ConvexClient;
   convexUrl?: string;
   hooks?: LifecycleHooks;
+  /** Reported in the `initialize` response `serverInfo`. Default: `"convex-mcp"`. */
   name?: string;
   pagination?: PaginationConfig;
   resources?: Record<string, ResourceDef>;
   tools?: Record<string, ToolDef>;
+  /** The MCP server's own version in `serverInfo`, not the package version. Default: `"0.1.0"`. */
   version?: string;
 };
 
